@@ -5,26 +5,28 @@ import {
   ArrowLeft,
   Check,
   FileText,
-  History,
   Link2,
+  Loader2,
   Lock,
   MessageSquare,
+  RefreshCw,
   Star,
   Trash2,
   Trophy,
 } from 'lucide-react'
-import { useState } from 'react'
+
 import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import {
   useDeleteIdea,
   useIdea,
-  useIdeaVersions,
   usePatchIdea,
-  useRestoreIdeaVersion,
+  useRevalidateIdea,
 } from '@/auth/use-auth'
+import { ApiError } from '@/api/client'
 import type { IdeaDetail, ValidationDetail } from '@/api/endpoints'
 import { ScoreMeter } from '@/components/ideas/ScoreMeter'
+import { VersionsDialog } from '@/components/ideas/VersionsDialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -167,9 +169,30 @@ export default function IdeaDetailPage() {
           <AlertTitle>
             Scores were computed for version {idea.validation.validatedVersionNumber}
           </AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>
+              The idea content changed since this check. Re-validation runs a deep check against the
+              current version for 0.5 credits.
+            </span>
+            <RevalidateButton idea={idea} />
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {idea.revalidation?.status === 'RUNNING' && (
+        <Alert>
+          <AlertDescription className="flex items-center gap-2">
+            <Loader2 className="size-4 animate-spin" /> Deep validation is running — this can take a
+            minute.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {idea.revalidation?.status === 'FAILED' && (
+        <Alert variant="destructive">
           <AlertDescription>
-            The idea content changed since this check. Re-validation will run a deep check against the
-            current version.
+            The last deep validation failed ({idea.revalidation.errorCode ?? 'ERROR'}). Credits were
+            refunded.
           </AlertDescription>
         </Alert>
       )}
@@ -278,7 +301,7 @@ export default function IdeaDetailPage() {
       <section className="flex flex-wrap items-center gap-3">
         <WorkButton idea={idea} />
         <FinalizeButton idea={idea} />
-        <VersionsDialog ideaId={idea.id} />
+        <VersionsDialog ideaId={idea.id} disabled={finalized} />
       </section>
     </div>
   )
@@ -453,69 +476,6 @@ function FinalizeButton({ idea }: { idea: IdeaDetail }) {
   )
 }
 
-function VersionsDialog({ ideaId }: { ideaId: string }) {
-  const { data: versions, isPending } = useIdeaVersions(ideaId)
-  const restore = useRestoreIdeaVersion(ideaId)
-  const [open, setOpen] = useState(false)
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="lg">
-          <History /> Version history
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Version history</DialogTitle>
-          <DialogDescription>
-            Every revision is kept. Restoring creates a new version from an old one.
-          </DialogDescription>
-        </DialogHeader>
-        {isPending ? (
-          <Skeleton className="h-24" />
-        ) : (
-          <ul className="max-h-80 space-y-2 overflow-y-auto">
-            {(versions ?? []).map((version) => (
-              <li key={version.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                <div>
-                  <p className="font-mono text-xs">
-                    v{version.versionNumber} · {version.source.toLowerCase()}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {version.changeSummary ?? 'No summary'} · {formatDateTime(version.createdAt)}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={restore.isPending}
-                  onClick={() =>
-                    restore.mutate(version.versionNumber, {
-                      onSuccess: () => {
-                        toast.success(`Restored version ${version.versionNumber}.`)
-                        setOpen(false)
-                      },
-                      onError: (error) =>
-                        toast.error(
-                          error instanceof Error && 'message' in error
-                            ? error.message
-                            : 'Could not restore that version.',
-                        ),
-                    })
-                  }
-                >
-                  Restore
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </DialogContent>
-    </Dialog>
-  )
-}
-
 function DeleteButton({ onConfirm }: { onConfirm: () => void }) {
   return (
     <Dialog>
@@ -543,6 +503,28 @@ function DeleteButton({ onConfirm }: { onConfirm: () => void }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function RevalidateButton({ idea }: { idea: IdeaDetail }) {
+  const revalidate = useRevalidateIdea(idea.id)
+  const running = idea.revalidation?.status === 'RUNNING' || revalidate.isPending
+
+  return (
+    <Button
+      variant="outline"
+      disabled={running || idea.status === 'FINALIZED'}
+      onClick={() =>
+        revalidate.mutate(crypto.randomUUID(), {
+          onSuccess: () => toast.success('Deep validation started.'),
+          onError: (error) =>
+            toast.error(error instanceof ApiError ? error.message : 'Could not start validation.'),
+        })
+      }
+    >
+      {running ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+      {running ? 'Validating…' : 'Re-validate · 0.5 credits'}
+    </Button>
   )
 }
 

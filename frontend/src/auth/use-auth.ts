@@ -12,11 +12,14 @@ import {
   getLedger,
   getMe,
   getPackages,
+  getRecentMessages,
   googleLogin,
   logout,
   patchIdea,
   requestOtp,
   restoreIdeaVersion,
+  revalidateIdea,
+  sendIdeaMessage,
   verifyOtp,
   type CreateGenerationBody,
   type IdeaListParams,
@@ -151,6 +154,8 @@ export function useIdea(id: string) {
     queryKey: ['idea', id],
     queryFn: () => getIdea(id),
     enabled: Boolean(id),
+    refetchInterval: (query) =>
+      query.state.data?.revalidation?.status === 'RUNNING' ? 2000 : false,
   })
 }
 
@@ -203,6 +208,39 @@ export function useRestoreIdeaVersion(id: string) {
       void queryClient.invalidateQueries({ queryKey: ['idea', id] })
       void queryClient.invalidateQueries({ queryKey: ['idea', id, 'versions'] })
       void queryClient.invalidateQueries({ queryKey: ['ideas'] })
+    },
+  })
+}
+
+export function useRecentMessages(ideaId: string) {
+  return useQuery({
+    queryKey: ['idea', ideaId, 'messages'],
+    queryFn: () => getRecentMessages(ideaId),
+    enabled: Boolean(ideaId),
+  })
+}
+
+export function useSendIdeaMessage(ideaId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ content, idempotencyKey }: { content: string; idempotencyKey: string }) =>
+      sendIdeaMessage(ideaId, content, idempotencyKey),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['idea', ideaId, 'messages'] })
+      void queryClient.invalidateQueries({ queryKey: ['idea', ideaId] })
+      void queryClient.invalidateQueries({ queryKey: ['idea', ideaId, 'versions'] })
+      void queryClient.invalidateQueries({ queryKey: ['credits'] })
+      void queryClient.invalidateQueries({ queryKey: ['ideas'] })
+    },
+  })
+}
+
+export function useRevalidateIdea(ideaId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (idempotencyKey: string) => revalidateIdea(ideaId, idempotencyKey),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['idea', ideaId] })
     },
   })
 }

@@ -19,6 +19,7 @@ import com.app.ideaforge.fields.FieldRepository;
 import com.app.ideaforge.ideas.dto.IdeaDetail;
 import com.app.ideaforge.ideas.dto.IdeaListItem;
 import com.app.ideaforge.ideas.dto.PatchIdeaRequest;
+import com.app.ideaforge.ideas.dto.RevalidationInfo;
 import com.app.ideaforge.ideas.dto.ScoreSummary;
 import com.app.ideaforge.ideas.dto.ValidationDetail;
 import com.app.ideaforge.ideas.dto.VersionSummary;
@@ -37,16 +38,19 @@ public class IdeaService {
 	private final IdeaVersionRepository versions;
 	private final IdeaValidationRepository validations;
 	private final FieldRepository fields;
+	private final ValidationRunRepository validationRuns;
 
 	public IdeaService(
 			IdeaRepository ideas,
 			IdeaVersionRepository versions,
 			IdeaValidationRepository validations,
-			FieldRepository fields) {
+			FieldRepository fields,
+			ValidationRunRepository validationRuns) {
 		this.ideas = ideas;
 		this.versions = versions;
 		this.validations = validations;
 		this.fields = fields;
+		this.validationRuns = validationRuns;
 	}
 
 	@Transactional(readOnly = true)
@@ -106,6 +110,14 @@ public class IdeaService {
 					stale);
 		}
 
+		RevalidationInfo revalidation = validationRuns.findFirstByIdeaIdOrderByCreatedAtDesc(ideaId)
+				.map(run -> new RevalidationInfo(
+						run.getStatus().name(),
+						run.getErrorCode(),
+						run.getCreatedAt(),
+						run.getCompletedAt()))
+				.orElse(null);
+
 		return new IdeaDetail(
 				idea.getId(),
 				idea.getFieldId(),
@@ -122,7 +134,8 @@ public class IdeaService {
 				idea.getUpdatedAt(),
 				idea.getFinalizedAt(),
 				current == null ? null : current.getContent(),
-				validationDetail);
+				validationDetail,
+				revalidation);
 	}
 
 	@Transactional

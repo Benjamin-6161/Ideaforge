@@ -60,11 +60,22 @@ public class IdeaVersion {
 			VersionSource source,
 			IdeaContent content,
 			String changeSummary) {
+		this(ideaId, versionNumber, source, content, changeSummary, null);
+	}
+
+	public IdeaVersion(
+			UUID ideaId,
+			int versionNumber,
+			VersionSource source,
+			IdeaContent content,
+			String changeSummary,
+			UUID createdFromMessageId) {
 		this.ideaId = ideaId;
 		this.versionNumber = versionNumber;
 		this.source = source;
 		this.content = content;
 		this.changeSummary = changeSummary;
+		this.createdFromMessageId = createdFromMessageId;
 	}
 
 	public UUID getId() {

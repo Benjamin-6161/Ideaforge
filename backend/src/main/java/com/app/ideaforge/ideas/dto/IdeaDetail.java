@@ -19,5 +19,6 @@ public record IdeaDetail(
 		Instant updatedAt,
 		Instant finalizedAt,
 		IdeaContent content,
-		ValidationDetail validation) {
+		ValidationDetail validation,
+		RevalidationInfo revalidation) {
 }

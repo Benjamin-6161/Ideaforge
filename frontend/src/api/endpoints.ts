@@ -124,6 +124,34 @@ export type VersionSummary = Omit<Deep<Generated['VersionSummary']>, 'changeSumm
   content: IdeaContent | null
 }
 
+export type RevalidationInfo = Generated['RevalidationInfo'] & {
+  status: string
+  errorCode: string | null
+  startedAt: string
+  completedAt: string | null
+}
+
+export type ChatMessage = Required<
+  Pick<Generated['ChatMessageResponse'], 'id' | 'role' | 'content' | 'status' | 'createdAt'>
+> & {
+  resultingVersionId: string | null
+  resultingVersionNumber: number | null
+}
+
+export type ChatTurn = {
+  userMessage: ChatMessage
+  assistantMessage: ChatMessage | null
+  newVersion: { id: string; versionNumber: number; changeSummary: string } | null
+}
+
+export type ChatMessagePage = {
+  items: ChatMessage[]
+  page: number
+  size: number
+  totalItems: number
+  totalPages: number
+}
+
 export interface IdeaListParams {
   fieldId?: string
   status?: string
@@ -204,3 +232,19 @@ export const getIdeaVersion = (id: string, number: number) =>
 
 export const restoreIdeaVersion = (id: string, number: number) =>
   apiFetch<VersionSummary>(`/api/ideas/${id}/versions/${number}/restore`, { method: 'POST' })
+
+export const getRecentMessages = (ideaId: string, limit = 50) =>
+  apiFetch<ChatMessage[]>(`/api/ideas/${ideaId}/messages/recent?limit=${limit}`)
+
+export const sendIdeaMessage = (ideaId: string, content: string, idempotencyKey: string) =>
+  apiFetch<ChatTurn>(`/api/ideas/${ideaId}/messages`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify({ content }),
+  })
+
+export const revalidateIdea = (ideaId: string, idempotencyKey: string) =>
+  apiFetch<{ id: string; status: string }>(`/api/ideas/${ideaId}/revalidate`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })

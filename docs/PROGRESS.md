@@ -61,3 +61,14 @@ Phase-by-phase status. One section per phase, appended after tests are green and
 - Frontend: filter bar (field, status, sort, favorites, archived, search), idea cards with score chips, optimistic favorite toggles, archive and delete dialogs, pagination; detail page with segmented score meters (competition inverted, rationale tooltips), Light/Deep badge, evidence and competitor lists, all content sections, stale-scores banner, version history dialog with restore.
 - Verified manually against the real SearXNG instance: light research returned real sources into the detail page.
 - 154 backend + 25 frontend tests green.
+
+## Phase 6 — Work on it (chat, versioning, re-validation)
+
+- Chat system prompt with a strict scope guard, read-only tool policy, and a delimiter-based revision directive (`<idea_update>` stripped from the visible reply); a second structured call applies the revision as a new immutable `CHAT` version.
+- Tools: `web_search` (cached SearXNG), `hacker_news`, `fetch_page` (SSRF-safe), capped at 3 calls per message by the gateway's manual tool loop.
+- Context window: current version content + latest validation summary + last 10 messages only. Messages are sanitized and injection-filtered before any charge; per-idea (100) and per-user daily (200) limits run before charging.
+- Short transactions around the LLM call (`prepare`, `complete`, `fail`); failed turns refund exactly once and record a failed assistant message; `Idempotency-Key` replays return the original turn.
+- Deep re-validation (0.5 credits): `validation_runs` migration/entity, 4 research queries + HN + up to 5 fetched pages, scoring against the current version, async pipeline with single refund on failure, startup recovery, and status polling through the idea detail.
+- Frontend: Work page split view (idea panel + chat, tabs on mobile), sanitized markdown rendering, suggestion chips, typing indicator, per-message "created version N" links, version history with restore; detail page Re-validate button with running/failed/already-fresh states.
+- Bugs found by the E2E pass and covered by a regression test: concurrent evidence-list mutation and snippet/page dedupe order in deep research.
+- 171 backend + 31 frontend tests green.

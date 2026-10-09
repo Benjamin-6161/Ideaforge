@@ -9,14 +9,18 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import com.app.ideaforge.common.web.PageResponse;
 import com.app.ideaforge.ideas.dto.IdeaDetail;
 import com.app.ideaforge.ideas.dto.IdeaListItem;
 import com.app.ideaforge.ideas.dto.PatchIdeaRequest;
+import com.app.ideaforge.ideas.dto.RevalidationResponse;
 import com.app.ideaforge.ideas.dto.VersionSummary;
 import com.app.ideaforge.security.AuthUser;
 
@@ -29,9 +33,11 @@ import org.springframework.http.ResponseEntity;
 public class IdeaController {
 
 	private final IdeaService ideaService;
+	private final RevalidationService revalidationService;
 
-	public IdeaController(IdeaService ideaService) {
+	public IdeaController(IdeaService ideaService, RevalidationService revalidationService) {
 		this.ideaService = ideaService;
+		this.revalidationService = revalidationService;
 	}
 
 	@GetMapping
@@ -86,5 +92,14 @@ public class IdeaController {
 			@PathVariable UUID id,
 			@PathVariable int number) {
 		return ideaService.restore(user.id(), id, number);
+	}
+
+	@PostMapping("/{id}/revalidate")
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	public RevalidationResponse revalidate(
+			@AuthenticationPrincipal AuthUser user,
+			@PathVariable UUID id,
+			@RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+		return revalidationService.create(user.id(), id, idempotencyKey);
 	}
 }

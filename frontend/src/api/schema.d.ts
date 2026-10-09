@@ -19,6 +19,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ideas/{id}/revalidate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["revalidate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ideas/{ideaId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["list"];
+        put?: never;
+        post: operations["send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/generations": {
         parameters: {
             query?: never;
@@ -138,7 +170,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get: operations["list"];
+        get: operations["list_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -171,6 +203,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["version"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ideas/{ideaId}/messages/recent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["recent"];
         put?: never;
         post?: never;
         delete?: never;
@@ -370,6 +418,39 @@ export interface components {
             createdAt?: string;
             content?: components["schemas"]["IdeaContent"];
         };
+        RevalidationResponse: {
+            /** Format: uuid */
+            id?: string;
+            status?: string;
+        };
+        SendMessageRequest: {
+            content: string;
+        };
+        ChatMessageResponse: {
+            /** Format: uuid */
+            id?: string;
+            role?: string;
+            content?: string;
+            status?: string;
+            /** Format: uuid */
+            resultingVersionId?: string;
+            /** Format: int32 */
+            resultingVersionNumber?: number;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        ChatTurnResponse: {
+            userMessage?: components["schemas"]["ChatMessageResponse"];
+            assistantMessage?: components["schemas"]["ChatMessageResponse"];
+            newVersion?: components["schemas"]["VersionRef"];
+        };
+        VersionRef: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: int32 */
+            versionNumber?: number;
+            changeSummary?: string;
+        };
         CreateGenerationRequest: {
             /** Format: uuid */
             fieldId: string;
@@ -503,6 +584,15 @@ export interface components {
             finalizedAt?: string;
             content?: components["schemas"]["IdeaContent"];
             validation?: components["schemas"]["ValidationDetail"];
+            revalidation?: components["schemas"]["RevalidationInfo"];
+        };
+        RevalidationInfo: {
+            status?: string;
+            errorCode?: string;
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
         };
         ScoreRationales: {
             demand?: string;
@@ -560,6 +650,17 @@ export interface components {
         };
         PageResponseIdeaListItem: {
             items?: components["schemas"]["IdeaListItem"][];
+            /** Format: int32 */
+            page?: number;
+            /** Format: int32 */
+            size?: number;
+            /** Format: int64 */
+            totalItems?: number;
+            /** Format: int32 */
+            totalPages?: number;
+        };
+        PageResponseChatMessageResponse: {
+            items?: components["schemas"]["ChatMessageResponse"][];
             /** Format: int32 */
             page?: number;
             /** Format: int32 */
@@ -680,6 +781,83 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["VersionSummary"];
+                };
+            };
+        };
+    };
+    revalidate: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["RevalidationResponse"];
+                };
+            };
+        };
+    };
+    list: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                ideaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["PageResponseChatMessageResponse"];
+                };
+            };
+        };
+    };
+    send: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                ideaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendMessageRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChatTurnResponse"];
                 };
             };
         };
@@ -886,7 +1064,7 @@ export interface operations {
             };
         };
     };
-    list: {
+    list_1: {
         parameters: {
             query?: {
                 fieldId?: string;
@@ -956,6 +1134,30 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["VersionSummary"];
+                };
+            };
+        };
+    };
+    recent: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                ideaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ChatMessageResponse"][];
                 };
             };
         };

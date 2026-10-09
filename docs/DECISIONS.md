@@ -98,6 +98,22 @@ Sorting by demand/profitability needs the latest validation per idea. A PostgreS
 
 Favorites are reversible, so the list updates immediately and reconciles on settle. Archive changes filtering (the item may leave the list) and delete is destructive, so both invalidate after the server confirms. The detail cache is refreshed for all three.
 
+## D25 — Revisions use a two-call protocol with a delimiter directive
+
+The chat call stays free-form (tools + natural reply) and may end with `<idea_update>{changeSummary,instructions}</idea_update>`, which is stripped before display. When present, a second structured call returns the full updated idea. This avoids asking one response to be both conversation and a large schema-validated document, and keeps the versioned content validated exactly like generation output.
+
+## D26 — No transaction is held across an LLM call
+
+Chat is split into `prepare` (validate, limit, charge, store the user message), the untracked LLM call, and `complete`/`fail`. This avoids long-lived database connections and lets failure refunds commit even though the request ends with an error response.
+
+## D27 — Message limits count user messages
+
+Both the per-idea (100) and per-user daily (200) limits count `USER` role messages; assistant replies are capped implicitly at one per user message. A failed reply still counts because it consumed a charge cycle (which is then refunded).
+
+## D28 — Deep re-validation is a tracked async run
+
+Re-validation adds the `validation_runs` table (with a partial unique index for one active run per idea) so the API can return 202, the UI can poll state through the idea detail, and stale RUNNING rows can be recovered and refunded at startup. "Up to 8 searches" is implemented as four queries with four results each plus a community query, which stays within budget.
+
 
 
 

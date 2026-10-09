@@ -85,4 +85,17 @@ public class FakeLlmGateway implements LlmGateway {
 		}
 		return new LlmTextResult(textResponse, new LlmUsage("fake", "fake-model", 1, 1, 1, 0));
 	}
+
+	@Override
+	public LlmToolChatResult chatWithTools(
+			LlmPurpose purpose,
+			LlmPrompt prompt,
+			java.util.List<LlmTool> tools,
+			int maxToolCalls) {
+		calls.add(new Call(purpose, prompt));
+		if (failWith != null) {
+			throw failWith;
+		}
+		return new LlmToolChatResult(textResponse, java.util.List.of(), new LlmUsage("fake", "fake-model", 1, 1, 1, 0));
+	}
 }

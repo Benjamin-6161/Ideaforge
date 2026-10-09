@@ -2,7 +2,9 @@ package com.app.ideaforge.llm;
 
 import java.math.BigDecimal;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -12,10 +14,16 @@ import org.springframework.stereotype.Service;
 import com.app.ideaforge.common.config.AppProperties;
 import com.app.ideaforge.security.SecurityEventService;
 
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
+import dev.langchain4j.agent.tool.ToolSpecification;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.output.TokenUsage;
 import tools.jackson.databind.ObjectMapper;
@@ -92,6 +100,117 @@ public class LangChain4jLlmGateway implements LlmGateway {
 		CallOutcome outcome = call(purpose, profileNameFor(purpose), secured);
 		checkCanary(outcome.text(), canary, purpose);
 		return new LlmTextResult(outcome.text(), outcome.usage());
+	}
+
+	@Override
+	public LlmToolChatResult chatWithTools(
+			LlmPurpose purpose,
+			LlmPrompt prompt,
+			List<LlmTool> tools,
+			int maxToolCalls) {
+		budgetGuard.assertWithinBudget();
+		String profileName = profileNameFor(purpose);
+		AppProperties.Llm.LlmProfile profile = models.profile(profileName);
+		String canary = newCanary();
+		String system = prompt.system() + CANARY_INSTRUCTION.formatted(canary);
+
+		List<ChatMessage> messages = new ArrayList<>();
+		messages.add(SystemMessage.from(system));
+		messages.add(UserMessage.from(prompt.user()));
+		List<ToolSpecification> specifications = tools.stream().map(this::toSpecification).toList();
+		List<String> invocations = new ArrayList<>();
+
+		String provider = profile.provider() == null ? "unknown" : profile.provider();
+		String configuredModel = profile.model() == null ? "unknown" : profile.model();
+		long startedAt = System.nanoTime();
+		int inputTokens = 0;
+		int outputTokens = 0;
+		int toolCallsUsed = 0;
+
+		try {
+			ChatModel model = models.modelFor(profileName);
+			while (true) {
+				ChatRequest.Builder requestBuilder = ChatRequest.builder()
+						.messages(messages)
+						.temperature(profile.temperature())
+						.maxOutputTokens(profile.maxOutputTokens());
+				if (!specifications.isEmpty()) {
+					requestBuilder.toolSpecifications(specifications);
+				}
+				ChatResponse response = model.chat(requestBuilder.build());
+				TokenUsage tokenUsage = response.tokenUsage();
+				if (tokenUsage != null) {
+					inputTokens += tokenUsage.inputTokenCount() == null ? 0 : tokenUsage.inputTokenCount();
+					outputTokens += tokenUsage.outputTokenCount() == null ? 0 : tokenUsage.outputTokenCount();
+				}
+				AiMessage aiMessage = response.aiMessage();
+				if (aiMessage != null && aiMessage.hasToolExecutionRequests()) {
+					messages.add(aiMessage);
+					for (ToolExecutionRequest toolRequest : aiMessage.toolExecutionRequests()) {
+						String result;
+						if (toolCallsUsed >= maxToolCalls) {
+							result = "{\"error\":\"tool call limit reached\"}";
+						} else {
+							toolCallsUsed++;
+							invocations.add(toolRequest.name());
+							result = executeTool(tools, toolRequest);
+						}
+						messages.add(ToolExecutionResultMessage.from(toolRequest, result));
+					}
+					continue;
+				}
+				int latencyMs = (int) ((System.nanoTime() - startedAt) / 1_000_000);
+				long cost = estimateCostMicroUsd(provider, configuredModel, inputTokens, outputTokens);
+				usageLogger.record(purpose, provider, configuredModel, inputTokens, outputTokens, latencyMs, cost, true);
+				String text = aiMessage == null || aiMessage.text() == null ? "" : aiMessage.text();
+				checkCanary(text, canary, purpose);
+				return new LlmToolChatResult(
+						text,
+						List.copyOf(invocations),
+						new LlmUsage(provider, configuredModel, inputTokens, outputTokens, latencyMs, cost));
+			}
+		} catch (CanaryLeakException ex) {
+			throw ex;
+		} catch (RuntimeException ex) {
+			int latencyMs = (int) ((System.nanoTime() - startedAt) / 1_000_000);
+			usageLogger.record(purpose, provider, configuredModel, inputTokens, outputTokens, latencyMs, 0, false);
+			throw new LlmException("LLM chat failed for profile " + profileName, ex);
+		}
+	}
+
+	private ToolSpecification toSpecification(LlmTool tool) {
+		JsonObjectSchema.Builder schema = JsonObjectSchema.builder().description(tool.description());
+		for (LlmTool.ToolParameter parameter : tool.parameters()) {
+			switch (parameter.type()) {
+				case "integer" -> schema.addIntegerProperty(parameter.name(), parameter.description());
+				case "number" -> schema.addNumberProperty(parameter.name(), parameter.description());
+				case "boolean" -> schema.addBooleanProperty(parameter.name(), parameter.description());
+				default -> schema.addStringProperty(parameter.name(), parameter.description());
+			}
+			if (parameter.required()) {
+				schema.required(parameter.name());
+			}
+		}
+		return ToolSpecification.builder()
+				.name(tool.name())
+				.description(tool.description())
+				.parameters(schema.build())
+				.build();
+	}
+
+	private String executeTool(List<LlmTool> tools, ToolExecutionRequest request) {
+		return tools.stream()
+				.filter(tool -> tool.name().equals(request.name()))
+				.findFirst()
+				.map(tool -> {
+					try {
+						return tool.execute(request.arguments());
+					} catch (Exception ex) {
+						log.debug("Tool {} failed: {}", tool.name(), ex.getMessage());
+						return "{\"error\":\"tool execution failed\"}";
+					}
+				})
+				.orElse("{\"error\":\"unknown tool\"}");
 	}
 
 	private LlmPrompt withCanary(LlmPrompt prompt, String canary) {
