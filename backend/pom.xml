@@ -20,6 +20,7 @@
 		<bucket4j.version>8.21.0</bucket4j.version>
 		<dnsjava.version>3.6.5</dnsjava.version>
 		<google-api-client.version>2.9.1</google-api-client.version>
+		<jsoup.version>1.23.2</jsoup.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -75,6 +76,12 @@
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
 			<version>${springdoc.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>${jsoup.version}</version>
 		</dependency>
 
 		<!-- Rate limiting -->

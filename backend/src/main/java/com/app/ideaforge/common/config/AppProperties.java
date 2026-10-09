@@ -139,7 +139,8 @@ public record AppProperties(
 				int timeoutSeconds,
 				long maxBytes,
 				int maxRedirects,
-				int maxChars) {
+				int maxChars,
+				boolean allowPrivateHosts) {
 		}
 	}
 

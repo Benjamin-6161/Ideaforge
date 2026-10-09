@@ -54,3 +54,24 @@ The spec allows a fixed dev OTP and requires startup failure under prod. Tests u
 
 Tests that log in without mocking `EmailSender` may deliver real OTP mail to a running Mailpit (localhost:1025). Delivery failures are swallowed by design, so tests pass in CI without Mailpit; no test asserts on delivered mail.
 
+## D14 — Prompt-based JSON output instead of provider JSON-schema APIs
+
+Provider structured-output APIs differ and several of our target setups (Ollama, OpenAI-compatible gateways) do not support them uniformly. The gateway therefore asks for JSON in the prompt, extracts the first JSON object/array, parses it, and allows exactly one repair retry. This keeps model/provider switching config-only. Revisit if a portable schema API emerges.
+
+## D15 — Trends provider is a no-op by default
+
+The spec allows a no-op default because free Google Trends access is unreliable. `TrendsProvider` exists with `NoopTrendsProvider` behind `app.research.trends.enabled`; a best-effort Google implementation is intentionally deferred until there is a stable free endpoint to target.
+
+## D16 — jsoup for text extraction
+
+`PageFetcher` needs HTML-to-text extraction. jsoup (MIT, actively maintained) was added for this; it only parses already-fetched, size-capped bytes and never fetches anything itself. Recorded per the dependency rule.
+
+## D17 — Provider config key `openai-compatible`
+
+The YAML map key under `app.llm.providers` is `openai-compatible` (matching the `provider` value used in profiles). The OpenAI-compatible client reuses `langchain4j-open-ai` with a custom base URL, so no extra module is needed.
+
+## D18 — `DEEP_VALIDATION` logs map to the `scoring` profile
+
+`ai_usage_logs.purpose` distinguishes DEEP_VALIDATION, but for model selection it uses the `scoring` profile (research + scoring workloads are the cheaper tier). A dedicated `deep-validation` profile can be added to config without code changes if needed.
+
+

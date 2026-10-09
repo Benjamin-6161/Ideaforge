@@ -31,3 +31,14 @@ Phase-by-phase status. One section per phase, appended after tests are green and
 - REST: `GET /api/credits`, `/ledger` (paged), `/packages`; dev seeder creates test1–test3 (test1 ADMIN) with 1000 units.
 - Frontend: app shell (responsive top bar, nav, credit chip, account menu, light/dark theme), OTP login with 6-box code input + resend timer, Google/Turnstile hooks (hidden when unconfigured), dashboard, credits page (balance, cost table, ledger, packages with disabled buy buttons), typed client generated from the OpenAPI schema (`npm run gen:api`).
 - 39 backend + 15 frontend tests green.
+
+## Phase 3 — LLM + research layer
+
+- `LlmGateway` is the only LLM surface (`generateJson` with one repair retry, `generateText`); `LangChain4jLlmGateway` is the only implementation and the only place LangChain4j is imported.
+- Four config profiles (`ideation`, `scoring`, `chat`, `finalize`) resolved from `app.llm.profiles.*`; providers anthropic/openai/gemini/ollama/openai-compatible; optional fallback profile; model/provider switch is config-only (unit-tested).
+- Versioned prompts in `backend/src/main/resources/prompts/*-vN.md` (ideation + scoring v1 with the quality rubric and scoring definitions); `PromptLibrary` picks the highest version and exposes the label.
+- Canary token per call with leak detection (output dropped, exception raised for refund, security event logged); response length cap; per-call usage logging to `ai_usage_logs` with estimated costs; daily spend circuit breaker (503, cached 60 s).
+- Injection pipeline: Unicode/zero-width/control sanitizing, delimiter stripping, heuristic pre-filter with 50+ attack payloads (direct, encoded, delimiter-breaking, tool abuse), `InputGuard` that logs security events and rejects before any charge.
+- Research: SearXNG JSON provider, Hacker News Algolia provider, no-op trends provider behind a flag, 7-day DB-backed search cache, and an SSRF-safe `PageFetcher` (scheme allowlist, every hop re-validated, redirect cap, timeout, 1 MB cap, jsoup text extraction, 8k truncation).
+- `FakeLlmGateway` for tests; gateway tests cover parsing, repair, canary leaks, fallback, and usage logging.
+- 135 backend tests green.

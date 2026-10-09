@@ -45,6 +45,9 @@ public class ProdSafetyValidator implements ApplicationRunner {
 		if (!properties.auth().session().cookieSecure()) {
 			throw new IllegalStateException("Session cookies must be Secure under the prod profile");
 		}
+		if (properties.research().pageFetcher().allowPrivateHosts()) {
+			throw new IllegalStateException("app.research.page-fetcher.allow-private-hosts must not be enabled in prod");
+		}
 		log.info("Production safety checks passed");
 	}
 

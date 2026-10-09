@@ -18,6 +18,8 @@ app:
       enabled: false
     hacker-news:
       enabled: false
+    page-fetcher:
+      allow-private-hosts: true
   seed:
     enabled: false
     test-users: false
