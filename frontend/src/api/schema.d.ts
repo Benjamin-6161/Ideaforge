@@ -51,6 +51,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ideas/{ideaId}/finalize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["finalize"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/generations": {
         parameters: {
             query?: never;
@@ -219,6 +235,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["recent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/ideas/{ideaId}/finalization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["finalization"];
         put?: never;
         post?: never;
         delete?: never;
@@ -450,6 +482,53 @@ export interface components {
             /** Format: int32 */
             versionNumber?: number;
             changeSummary?: string;
+        };
+        Branding: {
+            nameIdeas: string[];
+            domainTips: string;
+        };
+        FinalizationResponse: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            ideaId?: string;
+            /** Format: uuid */
+            versionId?: string;
+            status?: string;
+            errorCode?: string;
+            output?: components["schemas"]["FinalizePlan"];
+            buildPromptMd?: string;
+            agentsMd?: string;
+            promptVersion?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+        };
+        FinalizePlan: {
+            techStack: components["schemas"]["TechStack"];
+            mvpRoadmap: components["schemas"]["RoadmapPhase"][];
+            pricingSuggestion: string;
+            launchChecklist: string[];
+            validationNextSteps: string[];
+            branding: components["schemas"]["Branding"];
+            risks: string[];
+        };
+        RoadmapPhase: {
+            phase: string;
+            goals: string[];
+            estWeeks: string;
+        };
+        TechStack: {
+            frontend: string;
+            backend: string;
+            database: string;
+            auth: string;
+            hosting: string;
+            aiLayer: string;
+            thirdParty: string[];
+            estMonthlyCostAtMvp: string;
+            rationale: string;
         };
         CreateGenerationRequest: {
             /** Format: uuid */
@@ -862,6 +941,30 @@ export interface operations {
             };
         };
     };
+    finalize: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                ideaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FinalizationResponse"];
+                };
+            };
+        };
+    };
     create: {
         parameters: {
             query?: never;
@@ -1158,6 +1261,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ChatMessageResponse"][];
+                };
+            };
+        };
+    };
+    finalization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ideaId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["FinalizationResponse"];
                 };
             };
         };

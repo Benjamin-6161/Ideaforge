@@ -72,3 +72,12 @@ Phase-by-phase status. One section per phase, appended after tests are green and
 - Frontend: Work page split view (idea panel + chat, tabs on mobile), sanitized markdown rendering, suggestion chips, typing indicator, per-message "created version N" links, version history with restore; detail page Re-validate button with running/failed/already-fresh states.
 - Bugs found by the E2E pass and covered by a regression test: concurrent evidence-list mutation and snippet/page dedupe order in deep research.
 - 171 backend + 31 frontend tests green.
+
+## Phase 7 — Finalize
+
+- `POST /api/ideas/{id}/finalize` (Idempotency-Key, 1 credit, one active per user): deep validation at finalize time, then three calls — structured plan (tech stack, roadmap, pricing, checklist, next steps, branding, risks), a detailed build prompt, and a draft AGENTS.md — each schema/length validated.
+- On success the output and both markdown documents are stored, a DEEP validation is saved, and the idea is locked (`FINALIZED`); chat, restore, and re-validation are rejected for locked ideas while favorites/archive still work.
+- Failures refund exactly once; startup recovery fails and refunds stale RUNNING finalizations; replay-after-lock returns the original finalization.
+- Frontend: confirm dialog explaining the cost and lock, progress state, and the finalized view in tabs (Tech stack, Roadmap, Build prompt, AGENTS.md, Launch checklist, Risks) with copy and download-as-.md for both documents.
+- Verified end-to-end in the browser: fake-provider plan/documents, real deep research, locked idea, download buttons.
+- 178 backend + 38 frontend tests green.

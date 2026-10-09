@@ -16,12 +16,22 @@ public class FakeLlmGateway implements LlmGateway {
 
 	private final Map<Class<?>, Object> jsonResponses = new ConcurrentHashMap<>();
 	private final Map<Class<?>, java.util.Queue<Object>> jsonSequences = new ConcurrentHashMap<>();
+	private final Map<Class<?>, java.util.Queue<Object>> textSequences = new ConcurrentHashMap<>();
 	private final List<Call> calls = new CopyOnWriteArrayList<>();
 	private volatile String textResponse = "ok";
 	private volatile RuntimeException failWith;
 
 	public <T> FakeLlmGateway json(Class<T> type, T response) {
 		jsonResponses.put(type, response);
+		return this;
+	}
+
+	public FakeLlmGateway textSequence(String... responses) {
+		java.util.Queue<Object> queue = textSequences.computeIfAbsent(
+				String.class, key -> new java.util.concurrent.ConcurrentLinkedQueue<>());
+		for (String response : responses) {
+			queue.add(response);
+		}
 		return this;
 	}
 
@@ -37,6 +47,7 @@ public class FakeLlmGateway implements LlmGateway {
 	public void reset() {
 		jsonResponses.clear();
 		jsonSequences.clear();
+		textSequences.clear();
 		calls.clear();
 		textResponse = "ok";
 		failWith = null;
@@ -83,7 +94,10 @@ public class FakeLlmGateway implements LlmGateway {
 		if (failWith != null) {
 			throw failWith;
 		}
-		return new LlmTextResult(textResponse, new LlmUsage("fake", "fake-model", 1, 1, 1, 0));
+		java.util.Queue<Object> sequence = textSequences.get(String.class);
+		Object response = sequence == null ? null : sequence.poll();
+		String text = response == null ? textResponse : (String) response;
+		return new LlmTextResult(text, new LlmUsage("fake", "fake-model", 1, 1, 1, 0));
 	}
 
 	@Override

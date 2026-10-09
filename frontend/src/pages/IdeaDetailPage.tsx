@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   Archive,
@@ -19,12 +21,15 @@ import { Link, useNavigate, useParams } from 'react-router'
 import { toast } from 'sonner'
 import {
   useDeleteIdea,
+  useFinalization,
+  useFinalizeIdea,
   useIdea,
   usePatchIdea,
   useRevalidateIdea,
 } from '@/auth/use-auth'
 import { ApiError } from '@/api/client'
 import type { IdeaDetail, ValidationDetail } from '@/api/endpoints'
+import { FinalizedView } from '@/components/ideas/FinalizedView'
 import { ScoreMeter } from '@/components/ideas/ScoreMeter'
 import { VersionsDialog } from '@/components/ideas/VersionsDialog'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -52,6 +57,19 @@ export default function IdeaDetailPage() {
   const { data: idea, isPending, isError } = useIdea(id)
   const patchIdea = usePatchIdea()
   const deleteIdea = useDeleteIdea()
+  const finalize = useFinalizeIdea(id)
+  const { data: finalization } = useFinalization(
+    id,
+    idea?.status === 'FINALIZED' || finalize.isSuccess,
+  )
+  const [finalizeOpen, setFinalizeOpen] = useState(false)
+  const queryClient = useQueryClient()
+
+  useEffect(() => {
+    if (finalization?.status === 'SUCCEEDED') {
+      void queryClient.invalidateQueries({ queryKey: ['idea', id] })
+    }
+  }, [finalization?.status, id, queryClient])
 
   if (isPending) {
     return (
@@ -197,6 +215,25 @@ export default function IdeaDetailPage() {
         </Alert>
       )}
 
+      {finalization?.status === 'RUNNING' && (
+        <Alert>
+          <AlertDescription className="flex items-center gap-2">
+            <Loader2 className="size-4 animate-spin" /> Finalizing: deep validation, build prompt, and
+            AGENTS.md. This can take a few minutes.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {finalization?.status === 'FAILED' && (
+        <Alert variant="destructive">
+          <AlertDescription>
+            The finalization failed ({finalization.errorCode ?? 'ERROR'}). Credits were refunded.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {finalization?.status === 'SUCCEEDED' && <FinalizedView finalization={finalization} />}
+
       {content ? (
         <>
           <section className="grid gap-6 rounded-xl border bg-card p-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -300,8 +337,29 @@ export default function IdeaDetailPage() {
 
       <section className="flex flex-wrap items-center gap-3">
         <WorkButton idea={idea} />
-        <FinalizeButton idea={idea} />
+        <FinalizeButton
+          idea={idea}
+          running={finalization?.status === 'RUNNING' || finalize.isPending}
+          onRequest={() => setFinalizeOpen(true)}
+        />
         <VersionsDialog ideaId={idea.id} disabled={finalized} />
+        <FinalizeDialog
+          open={finalizeOpen}
+          onOpenChange={setFinalizeOpen}
+          pending={finalize.isPending}
+          onConfirm={() =>
+            finalize.mutate(crypto.randomUUID(), {
+              onSuccess: () => {
+                setFinalizeOpen(false)
+                toast.success('Finalization started.')
+              },
+              onError: (error: unknown) =>
+                toast.error(
+                  error instanceof ApiError ? error.message : 'Could not start the finalization.',
+                ),
+            })
+          }
+        />
       </section>
     </div>
   )
@@ -456,21 +514,30 @@ function WorkButton({ idea }: { idea: IdeaDetail }) {
   )
 }
 
-function FinalizeButton({ idea }: { idea: IdeaDetail }) {
+function FinalizeButton({
+  idea,
+  running,
+  onRequest,
+}: {
+  idea: IdeaDetail
+  running: boolean
+  onRequest: () => void
+}) {
   const finalized = idea.status === 'FINALIZED'
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <span>
-          <Button variant="secondary" size="lg" disabled>
-            <Check /> {finalized ? 'Finalized' : 'Finalize · 1 credit'}
+          <Button variant="secondary" size="lg" disabled={finalized || running} onClick={onRequest}>
+            {running ? <Loader2 className="animate-spin" /> : <Check />}
+            {finalized ? 'Finalized' : running ? 'Finalizing…' : 'Finalize · 1 credit'}
           </Button>
         </span>
       </TooltipTrigger>
       <TooltipContent>
         {finalized
-          ? 'Already finalized.'
-          : 'Finalization (deep validation and build pack) arrives with the finalize phase.'}
+          ? 'Already finalized and read-only.'
+          : 'Deep validation plus tech stack, roadmap, build prompt, and AGENTS.md.'}
       </TooltipContent>
     </Tooltip>
   )
@@ -525,6 +592,44 @@ function RevalidateButton({ idea }: { idea: IdeaDetail }) {
       {running ? <Loader2 className="animate-spin" /> : <RefreshCw />}
       {running ? 'Validating…' : 'Re-validate · 0.5 credits'}
     </Button>
+  )
+}
+
+function FinalizeDialog({
+  open,
+  onOpenChange,
+  pending,
+  onConfirm,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  pending: boolean
+  onConfirm: () => void
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Finalize this idea?</DialogTitle>
+          <DialogDescription>
+            Finalizing costs <span className="font-mono">1 credit</span> and runs a deep validation
+            plus the launch package: tech stack, MVP roadmap, pricing, launch checklist, branding,
+            risks, a detailed coding-agent build prompt, and a draft AGENTS.md. The idea becomes
+            read-only afterwards — only favorites and archiving stay available.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button variant="outline">Cancel</Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button disabled={pending} onClick={onConfirm}>
+              {pending ? <Loader2 className="animate-spin" /> : <Check />} Finalize · 1 credit
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 

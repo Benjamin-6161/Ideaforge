@@ -152,6 +152,19 @@ export type ChatMessagePage = {
   totalPages: number
 }
 
+export type FinalizePlan = Deep<Generated['FinalizePlan']>
+
+export type Finalization = Omit<
+  Deep<Generated['FinalizationResponse']>,
+  'errorCode' | 'output' | 'buildPromptMd' | 'agentsMd' | 'completedAt'
+> & {
+  errorCode: string | null
+  output: FinalizePlan | null
+  buildPromptMd: string | null
+  agentsMd: string | null
+  completedAt: string | null
+}
+
 export interface IdeaListParams {
   fieldId?: string
   status?: string
@@ -248,3 +261,12 @@ export const revalidateIdea = (ideaId: string, idempotencyKey: string) =>
     method: 'POST',
     headers: { 'Idempotency-Key': idempotencyKey },
   })
+
+export const finalizeIdea = (ideaId: string, idempotencyKey: string) =>
+  apiFetch<Finalization>(`/api/ideas/${ideaId}/finalize`, {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+  })
+
+export const getFinalization = (ideaId: string) =>
+  apiFetch<Finalization>(`/api/ideas/${ideaId}/finalization`)

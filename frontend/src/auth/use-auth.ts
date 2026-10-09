@@ -21,6 +21,8 @@ import {
   revalidateIdea,
   sendIdeaMessage,
   verifyOtp,
+  finalizeIdea,
+  getFinalization,
   type CreateGenerationBody,
   type IdeaListParams,
 } from '@/api/endpoints'
@@ -241,6 +243,30 @@ export function useRevalidateIdea(ideaId: string) {
     mutationFn: (idempotencyKey: string) => revalidateIdea(ideaId, idempotencyKey),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['idea', ideaId] })
+    },
+  })
+}
+
+/** Polls while a finalization is running; enabled once the idea is finalized. */
+export function useFinalization(ideaId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['idea', ideaId, 'finalization'],
+    queryFn: () => getFinalization(ideaId),
+    enabled,
+    retry: false,
+    refetchInterval: (query) => (query.state.data?.status === 'RUNNING' ? 2500 : false),
+  })
+}
+
+export function useFinalizeIdea(ideaId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (idempotencyKey: string) => finalizeIdea(ideaId, idempotencyKey),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['idea', ideaId, 'finalization'] })
+      void queryClient.invalidateQueries({ queryKey: ['idea', ideaId] })
+      void queryClient.invalidateQueries({ queryKey: ['credits'] })
+      void queryClient.invalidateQueries({ queryKey: ['ideas'] })
     },
   })
 }
