@@ -122,6 +122,14 @@ Re-validation adds the `validation_runs` table (with a partial unique index for 
 
 Beyond instruction-hierarchy framing, `GenerationPrompts` strips delimiter-like tags from every value it embeds, and chat tool results pass through `ToolText.sanitize` (tag stripping + length caps). Search snippets and fetched pages are attacker-influenced data, so this is treated as untrusted at every hop, not just at the boundary.
 
+## D31 — Single origin in production via Caddy
+
+The frontend image is a Caddy image with the built SPA in `/srv`; the same container also proxies `/api` to the backend. This keeps session cookies and CSRF first-party with zero CORS configuration, exactly like the Vite dev proxy does locally. The backend container exposes no host ports.
+
+## D32 — Compose refuses to start without production secrets
+
+The prod compose file marks `POSTGRES_PASSWORD`, the three peppers, `MAIL_HOST`, `MAIL_FROM`, the model names, and `SEARXNG_SECRET` as required (`:?`), complementing the application's own startup validation. Misconfiguration fails fast at `up` instead of leaking default credentials into a running stack.
+
 
 
 

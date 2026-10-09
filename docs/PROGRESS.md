@@ -91,3 +91,12 @@ Phase-by-phase status. One section per phase, appended after tests are green and
 - Logging hygiene reviewed: no emails, OTP codes, tokens, cookies, raw IPs, prompts, or responses are logged; only masked identifiers and coarse error codes.
 - Accessibility pass: skip-to-content link, labelled controls, `role="meter"` score meters, focus-visible styles, reduced-motion CSS, page title and description.
 - 185 backend + 38 frontend tests green.
+
+## Phase 9 — Deploy docs
+
+- `infra/docker-compose.prod.yml`: Caddy (TLS + static SPA + `/api` proxy), backend, PostgreSQL, SearXNG (internal only), health-check gated startup, named volumes for data and certificates, and required-secret interpolation so the stack refuses to start unconfigured.
+- `backend/Dockerfile` (Maven build stage → JRE 21 runtime, non-root user, curl for health checks) and `frontend/Dockerfile` (Node build → Caddy image).
+- `infra/Caddyfile`: automatic HTTPS, HTTP→HTTPS redirect, gzip/zstd, HSTS + nosniff + frame deny + referrer/permissions policies, and a CSP that allows only self plus Google Identity Services and Cloudflare Turnstile.
+- `infra/backup.sh`: nightly `pg_dump` with gzip integrity check, retention, and a documented restore command.
+- `docs/DEPLOY.md`: VPS setup, env reference, provider-switching examples, email SPF/DKIM/DMARC checklist, backups, updates, and operations. README links it.
+- Validated: compose config, Caddyfile (`caddy validate`), frontend image build, and Dockerfile static checks.

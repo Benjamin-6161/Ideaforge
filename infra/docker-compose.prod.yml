@@ -1,0 +1,105 @@
+# Production stack for a single small VPS.
+# Usage: docker compose -f infra/docker-compose.prod.yml --env-file .env up -d --build
+name: ideaforge
+
+services:
+  caddy:
+    build:
+      context: ../frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ../backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-ideaforge}
+      DB_USER: ${POSTGRES_USER:-ideaforge}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      SESSION_PEPPER: ${SESSION_PEPPER:?set SESSION_PEPPER in .env}
+      OTP_PEPPER: ${OTP_PEPPER:?set OTP_PEPPER in .env}
+      IP_PEPPER: ${IP_PEPPER:?set IP_PEPPER in .env}
+      APP_BASE_URL: https://${DOMAIN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      TURNSTILE_ENABLED: ${TURNSTILE_ENABLED:-true}
+      TURNSTILE_SECRET_KEY: ${TURNSTILE_SECRET_KEY:-}
+      TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY:-}
+      MAIL_HOST: ${MAIL_HOST:?set MAIL_HOST in .env}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-true}
+      MAIL_FROM: ${MAIL_FROM:?set MAIL_FROM in .env}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-IdeaForge}
+      IDEATION_PROVIDER: ${IDEATION_PROVIDER:-anthropic}
+      IDEATION_MODEL: ${IDEATION_MODEL:?set IDEATION_MODEL in .env}
+      SCORING_PROVIDER: ${SCORING_PROVIDER:-anthropic}
+      SCORING_MODEL: ${SCORING_MODEL:?set SCORING_MODEL in .env}
+      CHAT_PROVIDER: ${CHAT_PROVIDER:-anthropic}
+      CHAT_MODEL: ${CHAT_MODEL:?set CHAT_MODEL in .env}
+      FINALIZE_PROVIDER: ${FINALIZE_PROVIDER:-anthropic}
+      FINALIZE_MODEL: ${FINALIZE_MODEL:?set FINALIZE_MODEL in .env}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
+      OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-}
+      LLM_DAILY_BUDGET_USD: ${LLM_DAILY_BUDGET_USD:-10}
+      CREDIT_RECONCILIATION_CRON: ${CREDIT_RECONCILIATION_CRON:-0 15 3 * * *}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      searxng:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ideaforge}
+      POSTGRES_USER: ${POSTGRES_USER:-ideaforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?set SEARXNG_SECRET in .env}
+      SEARXNG_LIMITER: "false"
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

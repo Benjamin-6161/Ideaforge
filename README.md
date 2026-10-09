@@ -37,11 +37,22 @@ cd frontend && npm install && npm run dev
 
 ## Configuration
 
-All configuration is environment-driven (`backend/src/main/resources/application.yml` + `.env`). See [`.env.example`](.env.example) for the full list. Model/provider selection is config only — switching from Ollama to Anthropic/OpenAI/Gemini is an env change, no code change.
+All configuration is environment-driven (`backend/src/main/resources/application.yml` + `.env`). See [`.env.example`](.env.example) for the full list. Model/provider selection is config only — switching from Ollama to Anthropic/OpenAI/Gemini is an env change, no code change:
+
+```bash
+IDEATION_PROVIDER=anthropic IDEATION_MODEL=claude-sonnet-4-5 ANTHROPIC_API_KEY=sk-ant-...
+SCORING_PROVIDER=openai     SCORING_MODEL=gpt-5-mini      OPENAI_API_KEY=sk-...
+```
+
+Each purpose (`ideation`, `scoring`, `chat`, `finalize`) has its own profile, temperature, token cap, and timeout; a fallback profile can be configured per profile. Prompts live in `backend/src/main/resources/prompts/` and are versioned; the version is stored on runs and finalizations.
 
 ## Credits
 
-Credits are integer tenths ("units"): 1 credit = 10 units, shown as `units / 10` with one decimal. Costs live in the `credit_costs` table (2 credits per generation, 0.2 per chat message, 1 per finalization, 0.5 per re-validation). New accounts get 5 credits after verification. Real payments are not implemented; the schema is payment-ready.
+Credits are integer tenths ("units"): 1 credit = 10 units, shown as `units / 10` with one decimal. Costs live in the `credit_costs` table (2 credits per generation, 0.2 per chat message, 0.5 per re-validation, 1 per finalization) and are editable without redeploying. New accounts get 5 credits after verification. Real payments are not implemented; the schema is payment-ready.
+
+## Deployment
+
+See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the single-VPS Docker Compose setup (Caddy TLS + static SPA + `/api` proxy, Postgres, SearXNG), the environment reference, LLM provider switching, the email SPF/DKIM/DMARC checklist, and nightly `pg_dump` backups.
 
 ## Docs
 
