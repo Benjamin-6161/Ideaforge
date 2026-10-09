@@ -50,6 +50,7 @@ management:
 
 springdoc:
   api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
     path: /api-docs
   swagger-ui:
     path: /swagger-ui.html
@@ -58,12 +59,13 @@ springdoc:
 app:
   base-url: ${APP_BASE_URL:http://localhost:5173}
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}
   security:
-    # 32+ byte secrets; MUST be overridden in prod. Dev/test defaults only.
-    session-pepper: ${SESSION_PEPPER:dev-session-pepper-change-me-0123456789}
-    otp-pepper: ${OTP_PEPPER:dev-otp-pepper-change-me-0123456789}
-    ip-pepper: ${IP_PEPPER:dev-ip-pepper-change-me-0123456789}
+    # 32+ byte secrets; MUST be set in prod (startup fails otherwise). Dev profile has dev defaults.
+    session-pepper: ${SESSION_PEPPER:}
+    otp-pepper: ${OTP_PEPPER:}
+    ip-pepper: ${IP_PEPPER:}
+    trust-proxy: ${TRUST_PROXY:false}
   auth:
     dev-fixed-otp: ${DEV_FIXED_OTP:}
     otp:
@@ -98,6 +100,7 @@ app:
   credits:
     costs-cache-seconds: 60
     reconciliation-cron: ${CREDIT_RECONCILIATION_CRON:0 15 3 * * *}
+    signup-grant-units: ${SIGNUP_GRANT_UNITS:50}
   limits:
     generations-per-day: 10
     chat-messages-per-day: 200
@@ -187,12 +190,22 @@ app:
     session-pepper: dev-session-pepper-change-me-0123456789
     otp-pepper: dev-otp-pepper-change-me-0123456789
     ip-pepper: dev-ip-pepper-change-me-0123456789
+  disposable-email:
+    # .test domains have no DNS records; MX checks would block dev logins.
+    mx-check-enabled: false
   research:
     searxng:
       base-url: ${SEARXNG_BASE_URL:http://localhost:8088}
   seed:
     enabled: true
     test-users: true
+    test-user-credits-units: 1000
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
 
 logging:
   level:
@@ -222,6 +235,8 @@ app:
     dev-fixed-otp: ""
     session:
       cookie-secure: true
+  security:
+    trust-proxy: true
   research:
     searxng:
       base-url: http://searxng:8080

@@ -1,0 +1,29 @@
+app:
+  auth:
+    dev-fixed-otp: "000000"
+    otp:
+      resend-cooldown-seconds: 0
+    turnstile:
+      enabled: false
+  security:
+    session-pepper: test-session-pepper-0123456789
+    otp-pepper: test-otp-pepper-0123456789
+    ip-pepper: test-ip-pepper-0123456789
+    trust-proxy: true
+  disposable-email:
+    refresh-enabled: false
+    mx-check-enabled: false
+  research:
+    searxng:
+      enabled: false
+    hacker-news:
+      enabled: false
+  seed:
+    enabled: false
+    test-users: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
