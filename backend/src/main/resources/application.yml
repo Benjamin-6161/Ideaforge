@@ -1,0 +1,227 @@
+spring:
+  application:
+    name: ideaforge
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/ideaforge}
+    username: ${DB_USER:ideaforge}
+    password: ${DB_PASSWORD:ideaforge}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:false}
+  threads:
+    virtual:
+      enabled: true
+
+server:
+  port: ${PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: ${SWAGGER_ENABLED:false}
+
+app:
+  base-url: ${APP_BASE_URL:http://localhost:5173}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  security:
+    # 32+ byte secrets; MUST be overridden in prod. Dev/test defaults only.
+    session-pepper: ${SESSION_PEPPER:dev-session-pepper-change-me-0123456789}
+    otp-pepper: ${OTP_PEPPER:dev-otp-pepper-change-me-0123456789}
+    ip-pepper: ${IP_PEPPER:dev-ip-pepper-change-me-0123456789}
+  auth:
+    dev-fixed-otp: ${DEV_FIXED_OTP:}
+    otp:
+      ttl-minutes: 10
+      max-attempts: 5
+      resend-cooldown-seconds: 60
+      max-requests-per-email-per-hour: 5
+      max-requests-per-ip-per-hour: 20
+    session:
+      cookie-name: ${SESSION_COOKIE_NAME:ideaforge_session}
+      idle-days: 14
+      absolute-days: 30
+      cookie-secure: ${SESSION_COOKIE_SECURE:false}
+      cookie-same-site: Lax
+    signup:
+      max-per-ip-per-day: 3
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+    turnstile:
+      enabled: ${TURNSTILE_ENABLED:true}
+      verify-url: https://challenges.cloudflare.com/turnstile/v0/siteverify
+      secret-key: ${TURNSTILE_SECRET_KEY:}
+      site-key: ${TURNSTILE_SITE_KEY:}
+  email:
+    from: ${MAIL_FROM:no-reply@ideaforge.local}
+    from-name: ${MAIL_FROM_NAME:IdeaForge}
+  disposable-email:
+    refresh-enabled: ${DISPOSABLE_EMAIL_REFRESH:true}
+    refresh-url: https://raw.githubusercontent.com/disposable-email-domains/disposable-email-domains/main/disposable_email_blocklist.conf
+    allowlist: ${EMAIL_ALLOWLIST:}
+    mx-check-enabled: ${EMAIL_MX_CHECK:true}
+  credits:
+    costs-cache-seconds: 60
+    reconciliation-cron: ${CREDIT_RECONCILIATION_CRON:0 15 3 * * *}
+  limits:
+    generations-per-day: 10
+    chat-messages-per-day: 200
+    max-chat-messages-per-idea: 100
+    max-active-jobs-per-user: 1
+  llm:
+    daily-budget-usd: ${LLM_DAILY_BUDGET_USD:10}
+    profiles:
+      ideation:
+        provider: ${IDEATION_PROVIDER:ollama}
+        model: ${IDEATION_MODEL:llama3.1}
+        temperature: 0.8
+        max-output-tokens: 8000
+        timeout-seconds: 180
+      scoring:
+        provider: ${SCORING_PROVIDER:ollama}
+        model: ${SCORING_MODEL:llama3.1}
+        temperature: 0.2
+        max-output-tokens: 4000
+        timeout-seconds: 120
+      chat:
+        provider: ${CHAT_PROVIDER:ollama}
+        model: ${CHAT_MODEL:llama3.1}
+        temperature: 0.6
+        max-output-tokens: 4000
+        timeout-seconds: 120
+      finalize:
+        provider: ${FINALIZE_PROVIDER:ollama}
+        model: ${FINALIZE_MODEL:llama3.1}
+        temperature: 0.5
+        max-output-tokens: 8000
+        timeout-seconds: 240
+    providers:
+      anthropic:
+        api-key: ${ANTHROPIC_API_KEY:}
+      openai:
+        api-key: ${OPENAI_API_KEY:}
+      gemini:
+        api-key: ${GEMINI_API_KEY:}
+      ollama:
+        base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      open-ai-compatible:
+        api-key: ${OPENAI_COMPATIBLE_API_KEY:}
+        base-url: ${OPENAI_COMPATIBLE_BASE_URL:}
+    pricing:
+      # micro-USD per 1K tokens, keyed by provider/model; estimations only.
+      default-input-per-1k-micro-usd: ${LLM_DEFAULT_INPUT_PRICE:0}
+      default-output-per-1k-micro-usd: ${LLM_DEFAULT_OUTPUT_PRICE:0}
+  research:
+    searxng:
+      base-url: ${SEARXNG_BASE_URL:http://localhost:8088}
+      enabled: ${SEARXNG_ENABLED:true}
+    hacker-news:
+      enabled: true
+      base-url: https://hn.algolia.com/api/v1
+    trends:
+      enabled: ${TRENDS_ENABLED:false}
+    search-cache-days: 7
+    page-fetcher:
+      timeout-seconds: 5
+      max-bytes: 1048576
+      max-redirects: 3
+      max-chars: 8000
+
+logging:
+  level:
+    root: INFO
+    com.app.ideaforge: INFO
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/ideaforge}
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+
+app:
+  auth:
+    dev-fixed-otp: ${DEV_FIXED_OTP:000000}
+    turnstile:
+      enabled: ${TURNSTILE_ENABLED:false}
+  security:
+    session-pepper: dev-session-pepper-change-me-0123456789
+    otp-pepper: dev-otp-pepper-change-me-0123456789
+    ip-pepper: dev-ip-pepper-change-me-0123456789
+  research:
+    searxng:
+      base-url: ${SEARXNG_BASE_URL:http://localhost:8088}
+  seed:
+    enabled: true
+    test-users: true
+
+logging:
+  level:
+    com.app.ideaforge: DEBUG
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  mail:
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+server:
+  forward-headers-strategy: framework
+
+app:
+  auth:
+    dev-fixed-otp: ""
+    session:
+      cookie-secure: true
+  research:
+    searxng:
+      base-url: http://searxng:8080

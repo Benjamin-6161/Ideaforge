@@ -1,0 +1,24 @@
+# SearXNG configuration for IdeaForge (internal network only, never exposed publicly).
+use_default_settings: true
+
+general:
+  instance_name: "IdeaForge Search"
+  debug: false
+
+server:
+  bind_address: "0.0.0.0"
+  port: 8080
+  # Overridden by the SEARXNG_SECRET env var in docker compose.
+  secret_key: "dev-searxng-secret-change-me"
+  limiter: false
+  image_proxy: false
+
+search:
+  safe_search: 0
+  default_lang: "en"
+  formats:
+    - html
+    - json
+
+ui:
+  default_theme: simple

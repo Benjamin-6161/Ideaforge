@@ -1,0 +1,47 @@
+# Dev infrastructure: postgres, mailpit, searxng.
+# Usage (repo root): docker compose up -d
+name: ideaforge-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ideaforge}
+      POSTGRES_USER: ${POSTGRES_USER:-ideaforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ideaforge}
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    ports:
+      - "${SEARXNG_PORT:-8088}:8080"
+    environment:
+      SEARXNG_BASE_URL: http://localhost:${SEARXNG_PORT:-8088}/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-dev-searxng-secret-change-me}
+      # Internal use only: for dev we disable the bot limiter; never expose publicly.
+      SEARXNG_LIMITER: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
