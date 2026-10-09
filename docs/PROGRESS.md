@@ -5,8 +5,29 @@ Phase-by-phase status. One section per phase, appended after tests are green and
 ## Phase 0 — Scaffold
 
 - Repo layout: `backend/`, `frontend/` (flattened Vite skeleton), `infra/`, `docs/`, `compose.yml` (includes `infra/docker-compose.yml`).
-- Dev infra via Docker Compose: PostgreSQL 16, Mailpit, SearXNG (JSON API enabled, internal use only).
+- Dev infra via Docker Compose: PostgreSQL 16 (host port 5433 to avoid local clashes), Mailpit, SearXNG (JSON API enabled, internal use only).
 - Backend: Spring Boot 4.1.1 on Java 21, project renamed to `IdeaForgeApplication` (`com.app.ideaforge`), all spec dependencies added, Flyway baseline (`V1__baseline.sql`), health endpoint via Actuator, sane `application.yml` (+ `dev`/`prod` profiles).
-- Frontend: Vite + React + TypeScript skeleton moved to `frontend/`, dev proxy to the backend, Vitest + Testing Library wiring.
+- Frontend: Vite + React + TypeScript skeleton moved to `frontend/`, Tailwind v4 + shadcn/ui, dev proxy to the backend, Vitest + Testing Library wiring.
 - CI workflow: backend `./mvnw verify` (Testcontainers), frontend lint/test/build.
 - `README.md`, `.env.example`, `docs/` skeletons.
+
+## Phase 1 — Schema + auth
+
+- All Flyway migrations (identity, fields, credits, generation/ideas, chat/finalization, ops, seed fields with 32 fields × 5 niches, credit costs/packages).
+- Passwordless email OTP: SecureRandom codes stored as HMAC hashes, 10 min expiry, 5 attempts, 60 s resend cooldown, per-email (5/h) and per-IP (20/h) limits, constant-time compare, one-time use, generic 202 responses (no enumeration).
+- Google sign-in via `GoogleIdTokenVerifier` (aud + `email_verified` enforced), multiple identities per user.
+- Opaque session tokens (only SHA-256 stored), HttpOnly/Secure-in-prod/SameSite=Lax cookie, 14-day sliding / 30-day absolute expiry, logout revokes.
+- CSRF via cookie token repository with the SPA request handler; `GET /api/auth/csrf` bootstraps the cookie.
+- Turnstile verifier (disabled in dev/test), disposable-email blocklist (9k+ domains, weekly refresh with bundled fallback), MX/A checks (disabled in dev/test), IP hashing with signup throttling (3/24h), security events.
+- Prod fail-fast checks (dev OTP, empty/default peppers, insecure cookie, Turnstile secret).
+- `GET /api/fields` (with niches) and `GET /api/generation-options`.
+- 28 tests green (Testcontainers): OTP happy path, disposable emails, enumeration, expiry, attempt exhaustion, suspension, signup throttling, Google login, session cookie flags, logout, field seeds.
+
+## Phase 2 — Credits
+
+- Wallet/ledger/costs/packages domain; costs cached 60 s from `credit_costs`; spends use the atomic conditional `UPDATE ... WHERE balance_units >= :cost` with wallet row locking, then write exactly one signed ledger row.
+- Idempotent spends (`Idempotency-Key` unique per user on the ledger); refunds lock the spend row and are single-use via the unique `related_entry_id` constraint; signup grant (50 units) fires on the `UserVerifiedEvent`.
+- Nightly reconciliation job compares every wallet to its ledger sum and logs security events + a Micrometer counter on mismatch.
+- REST: `GET /api/credits`, `/ledger` (paged), `/packages`; dev seeder creates test1–test3 (test1 ADMIN) with 1000 units.
+- Frontend: app shell (responsive top bar, nav, credit chip, account menu, light/dark theme), OTP login with 6-box code input + resend timer, Google/Turnstile hooks (hidden when unconfigured), dashboard, credits page (balance, cost table, ledger, packages with disabled buy buttons), typed client generated from the OpenAPI schema (`npm run gen:api`).
+- 39 backend + 15 frontend tests green.

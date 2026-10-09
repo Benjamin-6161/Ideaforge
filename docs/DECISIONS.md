@@ -25,3 +25,32 @@ The Vite skeleton was generated under `frontend/frontend/`. Contents were moved 
 ## D6 — Google ID token verification via `google-api-client`
 
 Spec says "Google API client (ID token verification)". We use `GoogleIdTokenVerifier` from `com.google.api-client:google-api-client:2.9.1` and enforce `email_verified=true` and the configured `aud` (client ID).
+
+## D7 — Boot 4 uses Jackson 3; test starters are modular
+
+Spring Boot 4 ships Jackson 3 (`tools.jackson.databind`) and splits test/JSON libraries into separate starters. The app explicitly depends on `spring-boot-starter-json` and `spring-boot-starter-webmvc-test`; `RestSecurityHandlers` uses the Jackson 3 `ObjectMapper`. `openapi-typescript` still peers on TypeScript 5, so the frontend sets `legacy-peer-deps=true` in `.npmrc` (codegen tool only; the app itself builds with TS 6).
+
+## D8 — Dev Postgres on host port 5433
+
+The dev Compose file maps Postgres to host port 5433 by default because local machines often already run Postgres on 5432. Backend dev profile and `.env.example` follow the same default.
+
+## D9 — OTP verification returns an outcome instead of throwing
+
+Attempt counters and challenge invalidation must survive failed verifications, but throwing a runtime exception inside `@Transactional` would roll them back. `OtpService.verifyCode` therefore returns a `Verification` result and the controller maps failures to 401/403 after the transaction commits.
+
+## D10 — SPA CSRF bootstrap endpoint
+
+With deferred cookie CSRF tokens, a 401 response does not necessarily set the `XSRF-TOKEN` cookie. `GET /api/auth/csrf` (permit-all) resolves the token, and the frontend client self-heals by calling it before any unsafe request when the cookie is missing.
+
+## D11 — `dev-fixed-otp` allowed in dev and test, forbidden in prod
+
+The spec allows a fixed dev OTP and requires startup failure under prod. Tests use the same mechanism (documented here), and `ProdSafetyValidator` rejects any non-blank value plus default secrets under the `prod` profile.
+
+## D12 — Dev test users and roles
+
+`DevDataSeeder` (dev profile only) creates `test1..3@ideaforge.test` with 1000 units each; `test1` is `ADMIN` so the admin usage endpoint can be exercised locally.
+
+## D13 — Integration tests and Mailpit
+
+Tests that log in without mocking `EmailSender` may deliver real OTP mail to a running Mailpit (localhost:1025). Delivery failures are swallowed by design, so tests pass in CI without Mailpit; no test asserts on delivered mail.
+
