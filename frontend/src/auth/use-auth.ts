@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  createGeneration,
   getCredits,
+  getFields,
+  getGeneration,
+  getGenerationOptions,
   getLedger,
   getMe,
   getPackages,
@@ -8,6 +12,7 @@ import {
   logout,
   requestOtp,
   verifyOtp,
+  type CreateGenerationBody,
 } from '@/api/endpoints'
 
 export const meKey = ['me'] as const
@@ -82,6 +87,46 @@ export function useLogout() {
     mutationFn: logout,
     onSettled: () => {
       queryClient.clear()
+    },
+  })
+}
+
+export function useFields() {
+  return useQuery({
+    queryKey: ['fields'],
+    queryFn: getFields,
+    staleTime: 10 * 60_000,
+  })
+}
+
+export function useGenerationOptions() {
+  return useQuery({
+    queryKey: ['generation-options'],
+    queryFn: getGenerationOptions,
+    staleTime: 30 * 60_000,
+  })
+}
+
+export function useCreateGeneration() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ body, idempotencyKey }: { body: CreateGenerationBody; idempotencyKey: string }) =>
+      createGeneration(body, idempotencyKey),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: creditsKey })
+    },
+  })
+}
+
+/** Polls the run while it is active; stops once it reaches a terminal state. */
+export function useGeneration(id: string | null) {
+  return useQuery({
+    queryKey: ['generation', id],
+    queryFn: () => getGeneration(id as string),
+    enabled: Boolean(id),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status
+      return status === 'PENDING' || status === 'RUNNING' || status === undefined ? 1500 : false
     },
   })
 }

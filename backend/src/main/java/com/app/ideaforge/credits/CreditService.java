@@ -94,6 +94,10 @@ public class CreditService {
 		}
 	}
 
+	public java.util.Optional<CreditLedgerEntry> findByIdempotencyKey(UUID userId, String idempotencyKey) {
+		return ledger.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
+	}
+
 	/** Refunds a spend at most once; empty when already refunded or unknown. */
 	public Optional<CreditLedgerEntry> refund(UUID spendEntryId, String note) {
 		return transactions.refund(spendEntryId, note);

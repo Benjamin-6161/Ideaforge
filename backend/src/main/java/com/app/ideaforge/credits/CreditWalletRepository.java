@@ -12,7 +12,7 @@ import org.springframework.data.repository.query.Param;
 public interface CreditWalletRepository extends JpaRepository<CreditWallet, UUID> {
 
 	/** Atomic spend guard: only succeeds when the balance is sufficient. */
-	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Modifying(flushAutomatically = true)
 	@Query("""
 			update CreditWallet w
 			set w.balanceUnits = w.balanceUnits - :cost, w.updatedAt = :now
@@ -20,7 +20,7 @@ public interface CreditWalletRepository extends JpaRepository<CreditWallet, UUID
 			""")
 	int debit(@Param("userId") UUID userId, @Param("cost") long cost, @Param("now") Instant now);
 
-	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Modifying(flushAutomatically = true)
 	@Query("""
 			update CreditWallet w
 			set w.balanceUnits = w.balanceUnits + :amount, w.updatedAt = :now

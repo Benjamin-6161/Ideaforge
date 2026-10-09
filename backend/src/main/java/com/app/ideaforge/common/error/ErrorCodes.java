@@ -19,6 +19,8 @@ public final class ErrorCodes {
 	public static final String INSUFFICIENT_CREDITS = "INSUFFICIENT_CREDITS";
 	public static final String IDEMPOTENCY_CONFLICT = "IDEMPOTENCY_CONFLICT";
 	public static final String CONFLICTING_JOB = "CONFLICTING_JOB";
+	public static final String DAILY_LIMIT_REACHED = "DAILY_LIMIT_REACHED";
+	public static final String IDEMPOTENCY_KEY_REQUIRED = "IDEMPOTENCY_KEY_REQUIRED";
 	public static final String IDEA_LOCKED = "IDEA_LOCKED";
 	public static final String MESSAGE_LIMIT_REACHED = "MESSAGE_LIMIT_REACHED";
 	public static final String INJECTION_DETECTED = "INJECTION_DETECTED";

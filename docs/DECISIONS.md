@@ -74,4 +74,21 @@ The YAML map key under `app.llm.providers` is `openai-compatible` (matching the 
 
 `ai_usage_logs.purpose` distinguishes DEEP_VALIDATION, but for model selection it uses the `scoring` profile (research + scoring workloads are the cheaper tier). A dedicated `deep-validation` profile can be added to config without code changes if needed.
 
+## D19 — "At most 4 LLM calls" counts pipeline stages, not repairs
+
+The hard cap applies to logical pipeline calls (ideation, scoring, replacement ideation, replacement scoring). The structured-output repair retry (at most one per call) is an exceptional path bounded by the gateway, so a pathological run could still exceed 4 physical calls. This is documented rather than traded away, because dropping repair would make JSON failures fatal.
+
+## D20 — Generation creation is serialized per user
+
+`pg_advisory_xact_lock(hashtext(user_id))` makes concurrent create requests for the same user strictly serial, so the active-job check, idempotency replay, and run creation cannot race. It also keeps the double-charge protection airtight together with the ledger idempotency key.
+
+## D21 — Modifying queries must not clear the persistence context mid-business-transaction
+
+`@Modifying(clearAutomatically = true)` on `credit_wallets` updates detached managed entities (e.g. the `GenerationRun` being marked failed) before the transaction committed, silently dropping those changes. The flags were removed; refunds now mark the run failed first and wallet balances are always read with scalar queries. A regression test covers refund + run failure in one transaction.
+
+## D22 — Startup recovery is authoritative
+
+Because a single app instance runs the pipeline, any PENDING/RUNNING generation at startup is stale by definition; the recovery runner fails and refunds them unconditionally. This also covers a crash between charge and run creation (orphan spends are reused by the idempotent create path).
+
+
 

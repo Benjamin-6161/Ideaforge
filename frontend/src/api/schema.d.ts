@@ -3,6 +3,22 @@
  * Do not edit manually.
  */
 export interface paths {
+    "/api/generations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/otp/verify": {
         parameters: {
             query?: never;
@@ -75,6 +91,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/generations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -183,6 +215,78 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        CreateGenerationRequest: {
+            /** Format: uuid */
+            fieldId: string;
+            niche?: string;
+            parameters?: components["schemas"]["GenerationParameters"];
+        };
+        GenerationParameters: {
+            /** @enum {string} */
+            targetCustomer?: "B2B" | "B2C" | "B2B2C" | "FREELANCERS_PROSUMERS" | "ANY";
+            /** @enum {string} */
+            customerSize?: "SOLO" | "SMALL_BUSINESS" | "MID_MARKET" | "ENTERPRISE" | "ANY";
+            /** @enum {string} */
+            builderProfile?: "SOLO_FOUNDER" | "SMALL_TEAM" | "FUNDED_STARTUP";
+            /** @enum {string} */
+            timeToMvp?: "UNDER_2_WEEKS" | "ABOUT_1_MONTH" | "TWO_TO_THREE_MONTHS" | "NO_LIMIT";
+            /** @enum {string} */
+            startingBudget?: "MINIMAL" | "MODERATE" | "FLEXIBLE";
+            /** @enum {string} */
+            aiDepth?: "AI_CORE" | "AI_ENHANCED" | "ANY";
+            aiCapabilities?: ("TEXT_LLM" | "DOCUMENT_OCR" | "COMPUTER_VISION" | "VOICE_SPEECH" | "FORECASTING" | "RECOMMENDATIONS" | "WORKFLOW_AGENTS" | "DATA_EXTRACTION")[];
+            /** @enum {string} */
+            monetization?: "SUBSCRIPTION" | "USAGE_BASED" | "PER_SEAT" | "MARKETPLACE_COMMISSION" | "FREEMIUM" | "ANY";
+            /** @enum {string} */
+            region?: "GLOBAL" | "NORTH_AMERICA" | "EUROPE" | "SOUTH_ASIA" | "MENA" | "AFRICA" | "LATIN_AMERICA" | "SOUTHEAST_ASIA";
+            /** @enum {string} */
+            noveltyPreference?: "FRESH_ANGLE" | "BALANCED" | "BOLD";
+            problemFocus?: string;
+            exclude?: string;
+        };
+        GeneratedIdeaSummary: {
+            /** Format: uuid */
+            id?: string;
+            title?: string;
+            tagline?: string;
+            /** Format: uuid */
+            fieldId?: string;
+            status?: string;
+            /** Format: uuid */
+            currentVersionId?: string;
+            /** Format: int32 */
+            versionNumber?: number;
+            scores?: components["schemas"]["Scores"];
+        };
+        GenerationRunResponse: {
+            /** Format: uuid */
+            id?: string;
+            status?: string;
+            progressStage?: string;
+            errorCode?: string;
+            /** Format: uuid */
+            fieldId?: string;
+            niche?: string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            completedAt?: string;
+            ideas?: components["schemas"]["GeneratedIdeaSummary"][];
+        };
+        Scores: {
+            /** Format: int32 */
+            demand?: number;
+            /** Format: int32 */
+            profitability?: number;
+            /** Format: int32 */
+            competition?: number;
+            /** Format: int32 */
+            novelty?: number;
+            evidenceAvailable?: boolean;
+            depth?: string;
+            /** Format: uuid */
+            versionId?: string;
+        };
         OtpVerifyRequest: {
             /** Format: email */
             email: string;
@@ -297,6 +401,32 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    create: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGenerationRequest"];
+            };
+        };
+        responses: {
+            /** @description Accepted */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GenerationRunResponse"];
+                };
+            };
+        };
+    };
     verifyOtp: {
         parameters: {
             query?: never;
@@ -401,6 +531,28 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["MeResponse"];
+                };
+            };
+        };
+    };
+    get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["GenerationRunResponse"];
                 };
             };
         };

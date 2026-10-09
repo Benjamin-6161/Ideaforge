@@ -42,3 +42,13 @@ Phase-by-phase status. One section per phase, appended after tests are green and
 - Research: SearXNG JSON provider, Hacker News Algolia provider, no-op trends provider behind a flag, 7-day DB-backed search cache, and an SSRF-safe `PageFetcher` (scheme allowlist, every hop re-validated, redirect cap, timeout, 1 MB cap, jsoup text extraction, 8k truncation).
 - `FakeLlmGateway` for tests; gateway tests cover parsing, repair, canary leaks, fallback, and usage logging.
 - 135 backend tests green.
+
+## Phase 4 — Generation flow
+
+- `POST /api/generations` (Idempotency-Key required): validates the field and free-text parameters through the injection guard, enforces the daily limit (10/day) and one active job per user (409), spends 2 credits atomically, creates the run, and schedules the async pipeline after commit. A transaction-scoped advisory lock per user serializes creation.
+- Pipeline: ideation (5 ideas, schema-validated) → light research (≤2 searches + 1 community query per idea, cached snippets only) → one batched scoring call → a single replacement round for ideas with `competition >= 8` or `demand <= 3` (re-ideate, re-research, re-score). At most four logical LLM calls.
+- Ideas, immutable version 1, and LIGHT validations are persisted atomically only when the whole pipeline succeeds; any failure marks the run FAILED, logs an error code, and refunds exactly once.
+- Startup recovery marks stale PENDING/RUNNING runs FAILED (`APP_RESTART`) and refunds.
+- Polling endpoint `GET /api/generations/{id}` returns status, progress stage, and scored idea summaries; owner-scoped (404 otherwise).
+- Fix found by tests: `@Modifying(clearAutomatically = true)` on wallet updates detached managed entities mid-transaction, silently losing the failure status; removed and documented in DECISIONS.
+- 146 backend tests green (11 new generation tests: happy path, idempotent retry, missing key, injection, insufficient credits, LLM failure + refund, replacement round, conflict, daily limit, IDOR, recovery).

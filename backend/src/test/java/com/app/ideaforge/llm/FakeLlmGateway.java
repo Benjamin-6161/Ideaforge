@@ -15,6 +15,7 @@ public class FakeLlmGateway implements LlmGateway {
 	}
 
 	private final Map<Class<?>, Object> jsonResponses = new ConcurrentHashMap<>();
+	private final Map<Class<?>, java.util.Queue<Object>> jsonSequences = new ConcurrentHashMap<>();
 	private final List<Call> calls = new CopyOnWriteArrayList<>();
 	private volatile String textResponse = "ok";
 	private volatile RuntimeException failWith;
@@ -22,6 +23,23 @@ public class FakeLlmGateway implements LlmGateway {
 	public <T> FakeLlmGateway json(Class<T> type, T response) {
 		jsonResponses.put(type, response);
 		return this;
+	}
+
+	@SafeVarargs
+	public final <T> FakeLlmGateway jsonSequence(Class<T> type, T... responses) {
+		java.util.Queue<Object> queue = jsonSequences.computeIfAbsent(type, key -> new java.util.concurrent.ConcurrentLinkedQueue<>());
+		for (T response : responses) {
+			queue.add(response);
+		}
+		return this;
+	}
+
+	public void reset() {
+		jsonResponses.clear();
+		jsonSequences.clear();
+		calls.clear();
+		textResponse = "ok";
+		failWith = null;
 	}
 
 	public FakeLlmGateway text(String response) {
@@ -48,7 +66,11 @@ public class FakeLlmGateway implements LlmGateway {
 		if (failWith != null) {
 			throw failWith;
 		}
-		Object response = jsonResponses.get(responseType);
+		java.util.Queue<Object> sequence = jsonSequences.get(responseType);
+		Object response = sequence == null ? null : sequence.poll();
+		if (response == null) {
+			response = jsonResponses.get(responseType);
+		}
 		if (response == null) {
 			throw new LlmException("FakeLlmGateway has no JSON response registered for " + responseType.getSimpleName());
 		}

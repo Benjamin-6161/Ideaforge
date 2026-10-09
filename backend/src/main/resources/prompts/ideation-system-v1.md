@@ -67,4 +67,4 @@ Respond with a single JSON object and nothing else. No markdown fences, no comme
 }
 ```
 
-Constraints: exactly 5 ideas; keyFeatures 3-6 entries; mvpScope 3-6 entries; caveats 3-6 entries. Keep every string tight; compact JSON beats verbose prose.
+Constraints: 5 ideas by default, or the exact count requested by the task; keyFeatures 3-6 entries; mvpScope 3-6 entries; caveats 3-6 entries. Keep every string tight; compact JSON beats verbose prose.

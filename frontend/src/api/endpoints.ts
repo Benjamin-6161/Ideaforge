@@ -66,6 +66,29 @@ export type GenerationOptions = {
   noveltyPreference: OptionValue[]
 }
 
+export type GenerationParameters = Generated['GenerationParameters']
+
+export type IdeaScores = Required<
+  Pick<Generated['Scores'], 'demand' | 'profitability' | 'competition' | 'novelty' | 'evidenceAvailable' | 'depth' | 'versionId'>
+>
+
+export type GeneratedIdeaSummary = Required<
+  Pick<Generated['GeneratedIdeaSummary'], 'id' | 'title' | 'tagline' | 'fieldId' | 'status' | 'versionNumber'>
+> & {
+  currentVersionId: string | null
+  scores: IdeaScores | null
+}
+
+export type GenerationRun = Required<Pick<Generated['GenerationRunResponse'], 'id' | 'status' | 'fieldId' | 'createdAt'>> & {
+  progressStage: string | null
+  errorCode: string | null
+  niche: string | null
+  completedAt: string | null
+  ideas: GeneratedIdeaSummary[]
+}
+
+export type CreateGenerationBody = Generated['CreateGenerationRequest'] & { fieldId: string }
+
 export const getMe = () => apiFetch<CurrentUser>('/api/me')
 
 export const requestOtp = (email: string, turnstileToken: string | null) =>
@@ -98,3 +121,12 @@ export const getPackages = () => apiFetch<CreditPackage[]>('/api/credits/package
 export const getFields = () => apiFetch<Field[]>('/api/fields')
 
 export const getGenerationOptions = () => apiFetch<GenerationOptions>('/api/generation-options')
+
+export const createGeneration = (body: CreateGenerationBody, idempotencyKey: string) =>
+  apiFetch<GenerationRun>('/api/generations', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(body),
+  })
+
+export const getGeneration = (id: string) => apiFetch<GenerationRun>(`/api/generations/${id}`)
