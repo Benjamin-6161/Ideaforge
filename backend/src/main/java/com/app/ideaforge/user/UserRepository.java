@@ -11,4 +11,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 	Optional<User> findByEmailNormalized(String emailNormalized);
 
 	long countBySignupIpHashAndCreatedAtAfter(String signupIpHash, Instant after);
+
+	long countByCreatedAtAfter(Instant after);
 }

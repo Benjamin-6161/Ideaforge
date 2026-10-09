@@ -141,11 +141,13 @@ public class GenerationPrompts {
 		if (value == null) {
 			return "";
 		}
-		return value.replaceAll("[\\r\\n]+", " ")
-				.replace("<user_input>", "")
-				.replace("</user_input>", "")
-				.replace("<untrusted_web_content>", "")
-				.replace("</untrusted_web_content>", "")
+		return DELIMITER_TAGS.matcher(value)
+				.replaceAll("")
+				.replaceAll("[\\r\\n]+", " ")
 				.trim();
 	}
+
+	private static final java.util.regex.Pattern DELIMITER_TAGS = java.util.regex.Pattern.compile(
+			"</?(?:user_input|untrusted_web_content|system|idea_update)>",
+			java.util.regex.Pattern.CASE_INSENSITIVE);
 }

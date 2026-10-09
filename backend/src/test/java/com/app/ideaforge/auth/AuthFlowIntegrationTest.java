@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -204,6 +205,21 @@ class AuthFlowIntegrationTest extends IntegrationTestBase {
 				.andReturn();
 		assertThat(result.getResponse().getHeader("Set-Cookie")).contains("XSRF-TOKEN=");
 		assertThat(result.getResponse().getContentAsString()).contains("\"token\"");
+	}
+
+	@Test
+	void otpEmailRateLimitDropsRequestsAfterFivePerHour() throws Exception {
+		String email = uniqueEmail();
+		for (int i = 0; i < 6; i++) {
+			requestOtp(email);
+		}
+
+		verify(emailSender, times(5)).sendOtp(eq(email), any(), anyInt());
+		long challengeCount = challenges.findAll().stream()
+				.filter(challenge -> challenge.getEmailNormalized()
+						.equals(emailNormalizer.normalize(email)))
+				.count();
+		assertThat(challengeCount).isEqualTo(5);
 	}
 
 	@Test

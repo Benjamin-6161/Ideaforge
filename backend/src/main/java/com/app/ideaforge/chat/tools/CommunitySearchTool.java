@@ -48,7 +48,7 @@ public class CommunitySearchTool implements LlmTool {
 			List<CommunitySignal> signals = communityProvider.search(query, 5);
 			List<Map<String, Object>> payload = signals.stream()
 					.map(signal -> Map.<String, Object>of(
-							"title", signal.title(),
+							"title", ToolText.sanitize(signal.title(), 300),
 							"url", signal.url(),
 							"points", signal.points(),
 							"comments", signal.comments()))

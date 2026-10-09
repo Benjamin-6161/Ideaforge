@@ -67,6 +67,10 @@ public final class TestIdeas {
 		return new IdeationResponse(java.util.Arrays.stream(titles).map(TestIdeas::idea).toList());
 	}
 
+	public static com.app.ideaforge.generation.dto.GenerationParameters parameters() {
+		return com.app.ideaforge.generation.dto.GenerationParameters.defaultParameters();
+	}
+
 	public static ScoringResponse strongScores(int count) {
 		List<ScoringResponse.ScoredIdea> scores = new java.util.ArrayList<>();
 		for (int i = 0; i < count; i++) {

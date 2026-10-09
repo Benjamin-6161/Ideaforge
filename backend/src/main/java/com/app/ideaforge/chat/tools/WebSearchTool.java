@@ -61,9 +61,9 @@ public class WebSearchTool implements LlmTool {
 			List<Map<String, String>> payload = results.stream()
 					.limit(max)
 					.map(result -> Map.of(
-							"title", truncate(result.title(), 200),
+							"title", ToolText.sanitize(result.title(), 200),
 							"url", result.url(),
-							"snippet", truncate(result.snippet(), SNIPPET_CHARS)))
+							"snippet", ToolText.sanitize(result.snippet(), SNIPPET_CHARS)))
 					.toList();
 			return objectMapper.writeValueAsString(payload);
 		} catch (Exception ex) {
@@ -71,10 +71,4 @@ public class WebSearchTool implements LlmTool {
 		}
 	}
 
-	private String truncate(String value, int max) {
-		if (value == null) {
-			return "";
-		}
-		return value.length() <= max ? value : value.substring(0, max);
-	}
 }

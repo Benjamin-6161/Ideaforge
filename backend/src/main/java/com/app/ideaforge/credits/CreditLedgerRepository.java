@@ -1,5 +1,6 @@
 package com.app.ideaforge.credits;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,4 +29,13 @@ public interface CreditLedgerRepository extends JpaRepository<CreditLedgerEntry,
 	/** Per-user sums for the nightly reconciliation job. */
 	@Query("select l.userId, coalesce(sum(l.amountUnits), 0) from CreditLedgerEntry l group by l.userId")
 	List<Object[]> sumAmountsPerUser();
+
+	/** entry type, sum of signed units (for admin usage). */
+	@Query("""
+			select l.entryType, coalesce(sum(l.amountUnits), 0)
+			from CreditLedgerEntry l
+			where l.createdAt >= :since
+			group by l.entryType
+			""")
+	List<Object[]> sumsByTypeSince(@Param("since") Instant since);
 }

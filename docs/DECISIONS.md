@@ -114,6 +114,14 @@ Both the per-idea (100) and per-user daily (200) limits count `USER` role messag
 
 Re-validation adds the `validation_runs` table (with a partial unique index for one active run per idea) so the API can return 202, the UI can poll state through the idea detail, and stale RUNNING rows can be recovered and refunded at startup. "Up to 8 searches" is implemented as four queries with four results each plus a community query, which stays within budget.
 
+## D29 — Admin usage aggregates are computed on demand
+
+`GET /api/admin/usage` runs a handful of indexed aggregate queries (daily spend, purpose/model, signups, ledger sums) instead of maintaining materialized counters. Data volumes are tiny at this scale, and accuracy beats denormalization; the queries stay bounded by a 1–90 day window.
+
+## D30 — Tool output is sanitized before it reaches the prompt
+
+Beyond instruction-hierarchy framing, `GenerationPrompts` strips delimiter-like tags from every value it embeds, and chat tool results pass through `ToolText.sanitize` (tag stripping + length caps). Search snippets and fetched pages are attacker-influenced data, so this is treated as untrusted at every hop, not just at the boundary.
+
 
 
 

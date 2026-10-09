@@ -15,6 +15,12 @@ const navItems = [
 export function AppShell() {
   return (
     <div className="flex min-h-svh flex-col">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-3 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-2 focus:text-sm focus:text-primary-foreground"
+      >
+        Skip to content
+      </a>
       <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-2 px-4">
           <NavLink to="/" className="flex items-center gap-2" aria-label="IdeaForge home">
@@ -53,7 +59,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+      <main id="main-content" className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
         <Outlet />
       </main>
 

@@ -81,3 +81,13 @@ Phase-by-phase status. One section per phase, appended after tests are green and
 - Frontend: confirm dialog explaining the cost and lock, progress state, and the finalized view in tabs (Tech stack, Roadmap, Build prompt, AGENTS.md, Launch checklist, Risks) with copy and download-as-.md for both documents.
 - Verified end-to-end in the browser: fake-provider plan/documents, real deep research, locked idea, download buttons.
 - 178 backend + 38 frontend tests green.
+
+## Phase 8 — Hardening
+
+- Injection suite expanded: 50+ direct/encoded/delimiter/jailbreak/tool-abuse payloads plus indirect-injection tests proving web snippets stay inside `<untrusted_web_content>` and that delimiter tags in user text and tool output are stripped (defense in depth in `GenerationPrompts` and `ToolText`).
+- OTP per-email rate-limit test (5 sends/hour, silently dropped after) alongside the existing disposable-email, enumeration, expiry, attempts, suspension, and signup-throttle tests.
+- IDOR coverage across generations, ideas, versions, chat, re-validation, and finalization (404 semantics).
+- `GET /api/admin/usage` (ADMIN): daily LLM spend, purpose/model aggregates, signups, credits granted/spent/refunded, and the configured daily budget. Tests cover 403 for regular users and aggregates for admins.
+- Logging hygiene reviewed: no emails, OTP codes, tokens, cookies, raw IPs, prompts, or responses are logged; only masked identifiers and coarse error codes.
+- Accessibility pass: skip-to-content link, labelled controls, `role="meter"` score meters, focus-visible styles, reduced-motion CSS, page title and description.
+- 185 backend + 38 frontend tests green.

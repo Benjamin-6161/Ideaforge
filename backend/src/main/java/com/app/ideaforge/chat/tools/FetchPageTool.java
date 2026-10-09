@@ -48,14 +48,10 @@ public class FetchPageTool implements LlmTool {
 				return "{\"error\":\"url is required\"}";
 			}
 			FetchedPage page = pageFetcher.fetch(url);
-			String text = page.text() == null ? "" : page.text();
-			if (text.length() > TEXT_CHARS) {
-				text = text.substring(0, TEXT_CHARS);
-			}
 			return objectMapper.writeValueAsString(Map.of(
 					"url", page.url(),
-					"title", page.title() == null ? "" : page.title(),
-					"text", text));
+					"title", ToolText.sanitize(page.title(), 300),
+					"text", ToolText.sanitize(page.text(), TEXT_CHARS)));
 		} catch (Exception ex) {
 			return "{\"error\":\"fetch failed or URL blocked\"}";
 		}
