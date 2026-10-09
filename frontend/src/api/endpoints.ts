@@ -89,6 +89,52 @@ export type GenerationRun = Required<Pick<Generated['GenerationRunResponse'], 'i
 
 export type CreateGenerationBody = Generated['CreateGenerationRequest'] & { fieldId: string }
 
+type Deep<T> = T extends (infer U)[] ? Deep<U>[] : T extends object ? { [K in keyof T]-?: Deep<T[K]> } : T
+
+export type IdeaContent = Deep<Generated['IdeaContent']>
+
+export type IdeaListItem = Omit<Deep<Generated['IdeaListItem']>, 'niche' | 'currentVersionId' | 'scores'> & {
+  niche: string | null
+  currentVersionId: string | null
+  scores: Deep<Generated['ScoreSummary']> | null
+}
+
+export type IdeaListPage = {
+  items: IdeaListItem[]
+  page: number
+  size: number
+  totalItems: number
+  totalPages: number
+}
+
+export type ValidationDetail = Deep<Generated['ValidationDetail']>
+
+export type IdeaDetail = Omit<
+  Deep<Generated['IdeaDetail']>,
+  'niche' | 'currentVersionId' | 'finalizedAt' | 'validation'
+> & {
+  niche: string | null
+  currentVersionId: string | null
+  finalizedAt: string | null
+  validation: ValidationDetail | null
+}
+
+export type VersionSummary = Omit<Deep<Generated['VersionSummary']>, 'changeSummary' | 'content'> & {
+  changeSummary: string | null
+  content: IdeaContent | null
+}
+
+export interface IdeaListParams {
+  fieldId?: string
+  status?: string
+  favorite?: boolean
+  archived?: boolean
+  q?: string
+  sort?: 'newest' | 'demand' | 'profitability'
+  page?: number
+  size?: number
+}
+
 export const getMe = () => apiFetch<CurrentUser>('/api/me')
 
 export const requestOtp = (email: string, turnstileToken: string | null) =>
@@ -130,3 +176,31 @@ export const createGeneration = (body: CreateGenerationBody, idempotencyKey: str
   })
 
 export const getGeneration = (id: string) => apiFetch<GenerationRun>(`/api/generations/${id}`)
+
+export const getIdeas = (params: IdeaListParams = {}) => {
+  const search = new URLSearchParams()
+  if (params.fieldId) search.set('fieldId', params.fieldId)
+  if (params.status) search.set('status', params.status)
+  if (params.favorite !== undefined) search.set('favorite', String(params.favorite))
+  if (params.archived !== undefined) search.set('archived', String(params.archived))
+  if (params.q) search.set('q', params.q)
+  if (params.sort) search.set('sort', params.sort)
+  search.set('page', String(params.page ?? 0))
+  search.set('size', String(params.size ?? 20))
+  return apiFetch<IdeaListPage>(`/api/ideas?${search.toString()}`)
+}
+
+export const getIdea = (id: string) => apiFetch<IdeaDetail>(`/api/ideas/${id}`)
+
+export const patchIdea = (id: string, body: { isFavorite?: boolean; isArchived?: boolean }) =>
+  apiFetch<IdeaDetail>(`/api/ideas/${id}`, { method: 'PATCH', body: JSON.stringify(body) })
+
+export const deleteIdea = (id: string) => apiFetch<void>(`/api/ideas/${id}`, { method: 'DELETE' })
+
+export const getIdeaVersions = (id: string) => apiFetch<VersionSummary[]>(`/api/ideas/${id}/versions`)
+
+export const getIdeaVersion = (id: string, number: number) =>
+  apiFetch<VersionSummary>(`/api/ideas/${id}/versions/${number}`)
+
+export const restoreIdeaVersion = (id: string, number: number) =>
+  apiFetch<VersionSummary>(`/api/ideas/${id}/versions/${number}/restore`, { method: 'POST' })

@@ -1,18 +1,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createGeneration,
+  deleteIdea,
   getCredits,
   getFields,
   getGeneration,
   getGenerationOptions,
+  getIdea,
+  getIdeas,
+  getIdeaVersions,
   getLedger,
   getMe,
   getPackages,
   googleLogin,
   logout,
+  patchIdea,
   requestOtp,
+  restoreIdeaVersion,
   verifyOtp,
   type CreateGenerationBody,
+  type IdeaListParams,
 } from '@/api/endpoints'
 
 export const meKey = ['me'] as const
@@ -127,6 +134,75 @@ export function useGeneration(id: string | null) {
     refetchInterval: (query) => {
       const status = query.state.data?.status
       return status === 'PENDING' || status === 'RUNNING' || status === undefined ? 1500 : false
+    },
+  })
+}
+
+export function useIdeas(params: IdeaListParams) {
+  return useQuery({
+    queryKey: ['ideas', params],
+    queryFn: () => getIdeas(params),
+    placeholderData: (previous) => previous,
+  })
+}
+
+export function useIdea(id: string) {
+  return useQuery({
+    queryKey: ['idea', id],
+    queryFn: () => getIdea(id),
+    enabled: Boolean(id),
+  })
+}
+
+/** Optimistic favorite/archive toggle on list and detail caches. */
+export function usePatchIdea() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: { isFavorite?: boolean; isArchived?: boolean } }) =>
+      patchIdea(id, body),
+    onMutate: async ({ id, body }) => {
+      await queryClient.cancelQueries({ queryKey: ['ideas'] })
+      queryClient.setQueriesData<{ items: Array<Record<string, unknown>> }>({ queryKey: ['ideas'] }, (previous) => {
+        if (!previous) return previous
+        return {
+          ...previous,
+          items: previous.items.map((item) => (item.id === id ? { ...item, ...body } : item)),
+        }
+      })
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['ideas'] })
+      void queryClient.invalidateQueries({ queryKey: ['idea'] })
+    },
+  })
+}
+
+export function useDeleteIdea() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: deleteIdea,
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['ideas'] })
+    },
+  })
+}
+
+export function useIdeaVersions(id: string) {
+  return useQuery({
+    queryKey: ['idea', id, 'versions'],
+    queryFn: () => getIdeaVersions(id),
+    enabled: Boolean(id),
+  })
+}
+
+export function useRestoreIdeaVersion(id: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (number: number) => restoreIdeaVersion(id, number),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['idea', id] })
+      void queryClient.invalidateQueries({ queryKey: ['idea', id, 'versions'] })
+      void queryClient.invalidateQueries({ queryKey: ['ideas'] })
     },
   })
 }

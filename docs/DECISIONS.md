@@ -90,5 +90,14 @@ The hard cap applies to logical pipeline calls (ideation, scoring, replacement i
 
 Because a single app instance runs the pipeline, any PENDING/RUNNING generation at startup is stale by definition; the recovery runner fails and refunds them unconditionally. This also covers a crash between charge and run creation (orphan spends are reused by the idempotent create path).
 
+## D23 — Score-based sorting uses a lateral join
+
+Sorting by demand/profitability needs the latest validation per idea. A PostgreSQL `LEFT JOIN LATERAL (… ORDER BY created_at DESC LIMIT 1)` keeps sorting and pagination in the database with a matching `countQuery`; JPQL cannot express this cleanly.
+
+## D24 — Favorite toggles are optimistic; archive/delete are not
+
+Favorites are reversible, so the list updates immediately and reconciles on settle. Archive changes filtering (the item may leave the list) and delete is destructive, so both invalidate after the server confirms. The detail cache is refreshed for all three.
+
+
 
 

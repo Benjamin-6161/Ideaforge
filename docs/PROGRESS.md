@@ -52,3 +52,12 @@ Phase-by-phase status. One section per phase, appended after tests are green and
 - Polling endpoint `GET /api/generations/{id}` returns status, progress stage, and scored idea summaries; owner-scoped (404 otherwise).
 - Fix found by tests: `@Modifying(clearAutomatically = true)` on wallet updates detached managed entities mid-transaction, silently losing the failure status; removed and documented in DECISIONS.
 - 146 backend tests green (11 new generation tests: happy path, idempotent retry, missing key, injection, insufficient credits, LLM failure + refund, replacement round, conflict, daily limit, IDOR, recovery).
+
+## Phase 5 — Ideas UI
+
+- `GET /api/ideas` with field/status/favorite/archived filters, title search, `newest|demand|profitability` sorting (lateral join to the latest validation), and pagination; latest scores attached per item.
+- `GET /api/ideas/{id}` returns the current version content plus the latest validation with rationale, competitors, evidence, and a `stale` flag when the validated version is not current.
+- `PATCH` favorite/archive, soft `DELETE`, version listing, single-version fetch, and restore (creates a new `RESTORE` version; finalized ideas return 409 `IDEA_LOCKED`). Everything owner-scoped with 404 for other users.
+- Frontend: filter bar (field, status, sort, favorites, archived, search), idea cards with score chips, optimistic favorite toggles, archive and delete dialogs, pagination; detail page with segmented score meters (competition inverted, rationale tooltips), Light/Deep badge, evidence and competitor lists, all content sections, stale-scores banner, version history dialog with restore.
+- Verified manually against the real SearXNG instance: light research returned real sources into the detail page.
+- 154 backend + 25 frontend tests green.
