@@ -39,7 +39,11 @@ function readCookie(name: string): string | null {
 
 /** Fetches a fresh CSRF cookie/token, even when a stale cookie is present. */
 async function refreshCsrfToken(): Promise<void> {
-  await fetch('/api/auth/csrf', { credentials: 'same-origin' })
+  await fetch('/api/auth/csrf', {
+    credentials: 'same-origin',
+    // Bypasses the ngrok free-tier interstitial when tunneled (see apiFetch).
+    headers: { 'ngrok-skip-browser-warning': 'true' },
+  })
 }
 
 /** Generates the CSRF cookie if this browser does not have one yet. */
@@ -69,6 +73,9 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
         headers.set('X-XSRF-TOKEN', token)
       }
     }
+    // Harmless for our own backend; bypasses the ngrok free-tier browser
+    // interstitial when the API is reached through an ngrok tunnel.
+    headers.set('ngrok-skip-browser-warning', 'true')
     return fetch(path, {
       ...init,
       method,

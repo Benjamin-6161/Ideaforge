@@ -42,11 +42,13 @@ cloudflared tunnel --url http://localhost:8080
 # -> https://<random>.trycloudflare.com   (random per run; use a named tunnel for a stable host)
 ```
 
-Or ngrok (use your free static domain so the URL survives restarts, and pick the region closest to you):
+Or ngrok (free plans get one dev domain, so `ngrok http 8080` keeps the same host across restarts):
 
 ```bash
-ngrok http 8080 --domain your-name.ngrok-free.app --region eu
+ngrok http 8080
 ```
+
+ngrok's free tier may show its interstitial for browser-like API requests; the SPA sends `ngrok-skip-browser-warning: true` on every API call to bypass it. A tunnel-side workaround is not allowed on free plans — see Gotchas.
 
 A stable tunnel host matters: every tunnel restart with a random URL means updating the static-site rewrite.
 
@@ -98,7 +100,7 @@ If you rebuild after changing the tunnel host, remember the `_redirects` file is
 - **403 FORBIDDEN on a POST (and the UI says "something went wrong")**: the CSRF cookie was stale or cleared. Refresh the page; if it persists, check `CORS_ALLOWED_ORIGINS` and redeploy the backend — see `D39` in `docs/DECISIONS.md` for the session/CSRF fix. Requests that reached the backend show up in the tunnel's request log (`http://127.0.0.1:4040` for ngrok), which is the fastest place to see the real status codes.
 - **Use the seeded accounts.** Behind the tunnel every request arrives from one apparent IP, so the signup throttle (3 new accounts/IP/24h) applies to all teammates combined. The OTP rate limits are shared the same way (5/hour per email, 20/hour per apparent IP).
 - **Limits still apply**: 10 generations/day and 200 chat messages/day per user, plus the global daily LLM budget circuit breaker (`LLM_DAILY_BUDGET_USD`). Fine for demos; tell them if a run returns 503.
-- **ngrok warning page**: only shown for browser HTML requests. Because the tunnel is hit server-to-server with JSON, it does not appear. If you ever call the tunnel directly from a browser, add the `ngrok-skip-browser-warning: true` header.
+- **Balance and ideas look empty but login works (browser-style GETs)**: ngrok's free-tier interstitial can appear in front of browser-like API requests, even through the proxy, returning its own HTML page with status 200. The SPA parses that as JSON, gets no data, and quietly shows empty screens — while POSTs (login, OTP) keep working. The bypass is client-side: the SPA sends `ngrok-skip-browser-warning: true` on every request ([ngrok docs](https://ngrok.com/docs/pricing-limits/free-plan-limits/#removing-the-interstitial-page)). Free plans cannot inject that header at the tunnel (traffic policies refuse it), so a frontend built before this fix needs a redeploy — or switch to `cloudflared`, which has no interstitial at all.
 - **Tunnel restarts** change random hostnames; update the rewrite (or use a static domain) and the teammate keeps the same Render URL.
 - **Dev-only settings** (fixed OTP `000000`, Turnstile disabled) only exist in the `dev` profile. Never tunnel a `prod`-profile backend with these.
 - **Never expose Mailpit/SearXNG/Postgres tunnels publicly**; only the backend port is needed.

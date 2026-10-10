@@ -41,6 +41,8 @@ describe('apiFetch', () => {
 
     const [, init] = fetchMock.mock.calls[0]
     expect(new Headers(init.headers).get('X-XSRF-TOKEN')).toBeNull()
+    // Every request bypasses the ngrok free-tier interstitial.
+    expect(new Headers(init.headers).get('ngrok-skip-browser-warning')).toBe('true')
   })
 
   it('bootstraps the CSRF cookie when it is missing', async () => {
@@ -54,6 +56,9 @@ describe('apiFetch', () => {
     await apiFetch('/api/auth/otp/request', { method: 'POST', body: '{}' })
 
     expect(fetchMock.mock.calls[0][0]).toBe('/api/auth/csrf')
+    expect(
+      new Headers(fetchMock.mock.calls[0][1].headers).get('ngrok-skip-browser-warning'),
+    ).toBe('true')
     const [, init] = fetchMock.mock.calls[1]
     expect(new Headers(init.headers).get('X-XSRF-TOKEN')).toBe('fresh-token')
   })
