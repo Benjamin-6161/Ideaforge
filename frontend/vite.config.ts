@@ -14,6 +14,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    allowedHosts: ["cedarn-unlustfully-shonda.ngrok-free.dev"],
     proxy: {
       '/api': {
         target: 'http://localhost:8080',

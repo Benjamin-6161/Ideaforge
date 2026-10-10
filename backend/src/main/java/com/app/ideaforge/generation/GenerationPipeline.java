@@ -33,7 +33,7 @@ import com.app.ideaforge.ideas.dto.Competitor;
 import com.app.ideaforge.ideas.dto.EvidenceItem;
 import com.app.ideaforge.ideas.dto.IdeaContent;
 import com.app.ideaforge.ideas.dto.ScoreRationales;
-import com.app.ideaforge.llm.CanaryLeakException;
+import com.app.ideaforge.llm.LlmErrorClassifier;
 import com.app.ideaforge.llm.LlmException;
 import com.app.ideaforge.llm.LlmGateway;
 import com.app.ideaforge.llm.LlmPurpose;
@@ -102,7 +102,7 @@ public class GenerationPipeline {
 			execute(runId);
 		} catch (Exception ex) {
 			String code = errorCode(ex);
-			log.warn("Generation run {} failed with {}: {}", runId, code, ex.getMessage());
+			log.warn("Generation run {} failed with {}: {}", runId, code, LlmErrorClassifier.summary(ex));
 			failAndRefund(runId, code);
 		}
 	}
@@ -306,13 +306,7 @@ public class GenerationPipeline {
 	}
 
 	private String errorCode(Exception ex) {
-		if (ex instanceof CanaryLeakException) {
-			return "CANARY_LEAK";
-		}
-		if (ex instanceof LlmException) {
-			return "LLM_FAILED";
-		}
-		return "INTERNAL_ERROR";
+		return ex instanceof LlmException llm ? llm.getCode().runCode() : "INTERNAL_ERROR";
 	}
 
 	record ScoredIdea(

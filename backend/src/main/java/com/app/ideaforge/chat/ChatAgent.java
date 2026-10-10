@@ -14,7 +14,6 @@ import com.app.ideaforge.ideas.IdeaValidationRepository;
 import com.app.ideaforge.ideas.IdeaVersion;
 import com.app.ideaforge.ideas.IdeaVersionRepository;
 import com.app.ideaforge.ideas.dto.IdeaContent;
-import com.app.ideaforge.llm.CanaryLeakException;
 import com.app.ideaforge.llm.LlmException;
 import com.app.ideaforge.llm.LlmGateway;
 import com.app.ideaforge.llm.LlmPurpose;
@@ -157,12 +156,6 @@ public class ChatAgent {
 
 	/** Exposed for tests. */
 	static String errorCodeFor(RuntimeException ex) {
-		if (ex instanceof CanaryLeakException) {
-			return "CANARY_LEAK";
-		}
-		if (ex instanceof LlmException) {
-			return "LLM_FAILED";
-		}
-		return "INTERNAL_ERROR";
+		return ex instanceof LlmException llm ? llm.getCode().runCode() : "INTERNAL_ERROR";
 	}
 }

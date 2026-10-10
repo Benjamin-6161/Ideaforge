@@ -73,6 +73,7 @@ docker compose -f infra/docker-compose.prod.yml exec postgres \
 | `GOOGLE_CLIENT_ID` | Google Identity Services client id (optional) |
 | `TURNSTILE_ENABLED/SITE_KEY/SECRET_KEY` | Cloudflare Turnstile (optional but recommended) |
 | `*_PROVIDER`, `*_MODEL`, `*_API_KEY` | LLM profiles: `ideation`, `scoring`, `chat`, `finalize` |
+| `DEEPSEEK_API_KEY`, `DEEPSEEK_BASE_URL` | DeepSeek (first-class provider; base URL defaults to the public API) |
 | `LLM_DAILY_BUDGET_USD` | Global circuit breaker on estimated spend |
 | `SEARXNG_SECRET` | SearXNG internal secret |
 | `CREDIT_RECONCILIATION_CRON` | Nightly wallet-vs-ledger check |
@@ -90,6 +91,10 @@ IDEATION_PROVIDER=anthropic IDEATION_MODEL=claude-sonnet-4-5 ANTHROPIC_API_KEY=s
 # OpenAI
 IDEATION_PROVIDER=openai IDEATION_MODEL=gpt-5.1 OPENAI_API_KEY=sk-...
 
+# DeepSeek (first-class provider; OpenAI-compatible under the hood)
+IDEATION_PROVIDER=deepseek IDEATION_MODEL=deepseek-chat DEEPSEEK_API_KEY=sk-...
+# DEEPSEEK_BASE_URL defaults to https://api.deepseek.com/v1
+
 # Gemini
 IDEATION_PROVIDER=gemini IDEATION_MODEL=gemini-2.5-pro GEMINI_API_KEY=...
 
@@ -101,7 +106,7 @@ IDEATION_PROVIDER=openai-compatible IDEATION_MODEL=my-model \
   OPENAI_COMPATIBLE_BASE_URL=https://llm.example/v1 OPENAI_COMPATIBLE_API_KEY=...
 ```
 
-Use a cheaper model for `SCORING_PROVIDER`/`SCORING_MODEL` (and therefore deep validation) to cut cost. A `fallback-profile` can be added per profile in `application.yml`; it is tried once when the primary provider errors.
+Use a cheaper model for `SCORING_PROVIDER`/`SCORING_MODEL` (and therefore deep validation) to cut cost. A `fallback-profile` can be added per profile in `application.yml`; it is tried once when the primary provider errors. At startup the backend logs the resolved profile/provider/model for each purpose (never keys) and warns when a selected provider is missing its key — if AI calls fail, check that log line first.
 
 ## 8. Email DNS checklist
 

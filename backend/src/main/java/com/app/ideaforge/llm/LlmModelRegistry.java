@@ -22,6 +22,9 @@ import dev.langchain4j.model.openai.OpenAiChatModel;
 @Component
 public class LlmModelRegistry {
 
+	/** DeepSeek exposes an OpenAI-compatible API; only the base URL differs. */
+	public static final String DEEPSEEK_DEFAULT_BASE_URL = "https://api.deepseek.com/v1";
+
 	private final AppProperties properties;
 	private final Map<String, ChatModel> models = new ConcurrentHashMap<>();
 
@@ -32,7 +35,8 @@ public class LlmModelRegistry {
 	public AppProperties.Llm.LlmProfile profile(String profileName) {
 		AppProperties.Llm.LlmProfile profile = properties.llm().profiles().get(profileName);
 		if (profile == null) {
-			throw new LlmException("No LLM profile configured named '" + profileName + "'");
+			throw new LlmException(
+					LlmErrorCode.NOT_CONFIGURED, "No LLM profile configured named '" + profileName + "'");
 		}
 		return profile;
 	}
@@ -73,6 +77,13 @@ public class LlmModelRegistry {
 					.modelName(model)
 					.timeout(timeout)
 					.build();
+			case "deepseek" -> OpenAiChatModel.builder()
+					.apiKey(requireKey(provider, apiKey))
+					.baseUrl(firstNonBlank(baseUrl, DEEPSEEK_DEFAULT_BASE_URL))
+					.modelName(model)
+					.timeout(timeout)
+					.maxRetries(1)
+					.build();
 			case "openai-compatible" -> OpenAiChatModel.builder()
 					.apiKey(apiKey == null || apiKey.isBlank() ? "not-needed" : apiKey)
 					.baseUrl(requireBaseUrl(profileName, baseUrl))
@@ -81,27 +92,34 @@ public class LlmModelRegistry {
 					.maxRetries(1)
 					.build();
 			default -> throw new LlmException(
+					LlmErrorCode.NOT_CONFIGURED,
 					"Unknown LLM provider '" + provider + "' for profile '" + profileName + "'");
 		};
 	}
 
 	private String requireModel(String profileName, AppProperties.Llm.LlmProfile profile) {
 		if (profile.model() == null || profile.model().isBlank()) {
-			throw new LlmException("No model configured for LLM profile '" + profileName + "'");
+			throw new LlmException(
+					LlmErrorCode.NOT_CONFIGURED,
+					"No model configured for LLM profile '" + profileName + "'");
 		}
 		return profile.model();
 	}
 
 	private String requireKey(String provider, String apiKey) {
 		if (apiKey == null || apiKey.isBlank()) {
-			throw new LlmException("Provider '" + provider + "' is not configured (missing API key)");
+			throw new LlmException(
+					LlmErrorCode.NOT_CONFIGURED,
+					"Provider '" + provider + "' is not configured (missing API key)");
 		}
 		return apiKey;
 	}
 
 	private String requireBaseUrl(String profileName, String baseUrl) {
 		if (baseUrl == null || baseUrl.isBlank()) {
-			throw new LlmException("Profile '" + profileName + "' requires a base URL for openai-compatible");
+			throw new LlmException(
+					LlmErrorCode.NOT_CONFIGURED,
+					"Profile '" + profileName + "' requires a base URL for openai-compatible");
 		}
 		return baseUrl;
 	}

@@ -1,6 +1,7 @@
 import { Check, Loader2, OctagonX } from 'lucide-react'
 import type { GenerationRun } from '@/api/endpoints'
 import { Progress } from '@/components/ui/progress'
+import { failureMessageFor } from '@/lib/llm-errors'
 import { cn } from '@/lib/utils'
 
 const STAGES = [
@@ -69,7 +70,7 @@ export function GenerationProgress({ run }: { run: GenerationRun | undefined }) 
         <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm">
           <OctagonX className="mt-0.5 size-4 text-destructive" />
           <div>
-            <p className="font-medium">{failureMessage(run?.errorCode)}</p>
+            <p className="font-medium">{failureMessageFor(run?.errorCode)}</p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Your credits for this run were refunded automatically.
             </p>
@@ -78,17 +79,4 @@ export function GenerationProgress({ run }: { run: GenerationRun | undefined }) 
       )}
     </div>
   )
-}
-
-function failureMessage(errorCode: string | null | undefined): string {
-  switch (errorCode) {
-    case 'LLM_FAILED':
-      return 'The AI provider could not complete the run.'
-    case 'CANARY_LEAK':
-      return 'The model returned an unsafe response, so it was discarded.'
-    case 'APP_RESTART':
-      return 'The server restarted mid-run.'
-    default:
-      return 'Something went wrong during generation.'
-  }
 }

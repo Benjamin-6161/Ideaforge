@@ -100,3 +100,10 @@ Phase-by-phase status. One section per phase, appended after tests are green and
 - `infra/backup.sh`: nightly `pg_dump` with gzip integrity check, retention, and a documented restore command.
 - `docs/DEPLOY.md`: VPS setup, env reference, provider-switching examples, email SPF/DKIM/DMARC checklist, backups, updates, and operations. README links it.
 - Validated: compose config, Caddyfile (`caddy validate`), frontend image build, and Dockerfile static checks.
+
+## Post-phase fixes (first-run feedback)
+
+- The dev profile now imports the repo-root (or `backend/`) `.env`, so provider choices and API keys apply to `./mvnw spring-boot:run` without Docker; Turnstile stays force-disabled and OpenAPI docs force-enabled in dev regardless of `.env` values.
+- `.env.example` no longer ships `ollama/llama3.1` for all four profiles; provider/model lines are commented examples, and DeepSeek is documented alongside OpenAI/Anthropic/Gemini/Ollama/custom.
+- DeepSeek added as a first-class provider (OpenAI-compatible client, default base URL, `DEEPSEEK_API_KEY`/`DEEPSEEK_BASE_URL`), including the prod compose passthrough.
+- LLM failures now carry a taxonomy (`LLM_NOT_CONFIGURED`, `LLM_UNAUTHORIZED`, `MODEL_NOT_FOUND`, `LLM_RATE_LIMITED`, `LLM_TIMEOUT`, `LLM_CONNECTION_FAILED`, `LLM_INVALID_REQUEST`, `LLM_INVALID_OUTPUT`) stored on runs, logged with the underlying cause, and rendered with actionable messages in the UI; startup logs the resolved provider/model per purpose and warns about missing keys.

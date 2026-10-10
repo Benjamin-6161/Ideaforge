@@ -140,6 +140,9 @@ app:
         api-key: ${OPENAI_API_KEY:}
       gemini:
         api-key: ${GEMINI_API_KEY:}
+      deepseek:
+        api-key: ${DEEPSEEK_API_KEY:}
+        base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com/v1}
       ollama:
         base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       openai-compatible:
@@ -173,10 +176,15 @@ logging:
     com.app.ideaforge: INFO
 
 ---
+# Dev runs on the host: the repo-root (or backend/) .env is imported as a
+# properties file so keys and provider choices just work. Missing files are fine.
 spring:
   config:
     activate:
       on-profile: dev
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/ideaforge}
   mail:
@@ -187,7 +195,8 @@ app:
   auth:
     dev-fixed-otp: ${DEV_FIXED_OTP:000000}
     turnstile:
-      enabled: ${TURNSTILE_ENABLED:false}
+      # Never enabled in dev, even if .env sets TURNSTILE_ENABLED=true.
+      enabled: false
   security:
     session-pepper: dev-session-pepper-change-me-0123456789
     otp-pepper: dev-otp-pepper-change-me-0123456789
@@ -203,11 +212,12 @@ app:
     test-users: true
     test-user-credits-units: 1000
 
+# Always on in dev so `npm run gen:api` works regardless of .env values.
 springdoc:
   api-docs:
-    enabled: ${SWAGGER_ENABLED:true}
+    enabled: true
   swagger-ui:
-    enabled: ${SWAGGER_ENABLED:true}
+    enabled: true
 
 logging:
   level:

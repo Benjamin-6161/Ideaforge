@@ -16,7 +16,7 @@ import com.app.ideaforge.generation.GenerationPrompts;
 import com.app.ideaforge.generation.ResearchBundle;
 import com.app.ideaforge.generation.dto.ScoringResponse;
 import com.app.ideaforge.ideas.dto.IdeaContent;
-import com.app.ideaforge.llm.CanaryLeakException;
+import com.app.ideaforge.llm.LlmErrorClassifier;
 import com.app.ideaforge.llm.LlmException;
 import com.app.ideaforge.llm.LlmGateway;
 import com.app.ideaforge.llm.LlmPurpose;
@@ -74,7 +74,7 @@ public class DeepValidationPipeline {
 			execute(runId);
 		} catch (Exception ex) {
 			String code = errorCode(ex);
-			log.warn("Revalidation {} failed with {}: {}", runId, code, ex.getMessage());
+			log.warn("Revalidation {} failed with {}: {}", runId, code, LlmErrorClassifier.summary(ex));
 			failAndRefund(runId, code);
 		}
 	}
@@ -156,12 +156,6 @@ public class DeepValidationPipeline {
 	}
 
 	private String errorCode(Exception ex) {
-		if (ex instanceof CanaryLeakException) {
-			return "CANARY_LEAK";
-		}
-		if (ex instanceof LlmException) {
-			return "LLM_FAILED";
-		}
-		return "INTERNAL_ERROR";
+		return ex instanceof LlmException llm ? llm.getCode().runCode() : "INTERNAL_ERROR";
 	}
 }

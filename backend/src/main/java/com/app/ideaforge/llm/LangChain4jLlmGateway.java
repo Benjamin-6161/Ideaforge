@@ -88,7 +88,10 @@ public class LangChain4jLlmGateway implements LlmGateway {
 		try {
 			return objectMapper.readValue(extractJson(repaired), responseType);
 		} catch (Exception secondFailure) {
-			throw new LlmException("Model output could not be parsed as the required JSON", secondFailure);
+			throw new LlmException(
+					LlmErrorCode.INVALID_OUTPUT,
+					"Model output could not be parsed as the required JSON",
+					secondFailure);
 		}
 	}
 
@@ -174,7 +177,10 @@ public class LangChain4jLlmGateway implements LlmGateway {
 		} catch (RuntimeException ex) {
 			int latencyMs = (int) ((System.nanoTime() - startedAt) / 1_000_000);
 			usageLogger.record(purpose, provider, configuredModel, inputTokens, outputTokens, latencyMs, 0, false);
-			throw new LlmException("LLM chat failed for profile " + profileName, ex);
+			throw new LlmException(
+					LlmErrorClassifier.classify(ex),
+					"LLM chat failed for profile " + profileName + " (" + LlmErrorClassifier.summary(ex) + ")",
+					ex);
 		}
 	}
 
@@ -279,14 +285,18 @@ public class LangChain4jLlmGateway implements LlmGateway {
 				text = "";
 			}
 			if (text.length() > MAX_RESPONSE_CHARS) {
-				throw new LlmException("Model response exceeds the maximum allowed length");
+				throw new LlmException(
+						LlmErrorCode.INVALID_OUTPUT, "Model response exceeds the maximum allowed length");
 			}
 			LlmUsage usage = new LlmUsage(provider, configuredModel, inputTokens, outputTokens, latencyMs, cost);
 			return new CallOutcome(text, usage);
 		} catch (RuntimeException ex) {
 			int latencyMs = (int) ((System.nanoTime() - startedAt) / 1_000_000);
 			usageLogger.record(purpose, provider, configuredModel, 0, 0, latencyMs, 0, false);
-			throw new LlmException("LLM call failed for profile " + profileName, ex);
+			throw new LlmException(
+					LlmErrorClassifier.classify(ex),
+					"LLM call failed for profile " + profileName + " (" + LlmErrorClassifier.summary(ex) + ")",
+					ex);
 		}
 	}
 
@@ -326,7 +336,7 @@ public class LangChain4jLlmGateway implements LlmGateway {
 
 	private String extractJson(String text) {
 		if (text == null) {
-			throw new LlmException("Empty model output");
+			throw new LlmException(LlmErrorCode.INVALID_OUTPUT, "Empty model output");
 		}
 		int objectStart = text.indexOf('{');
 		int arrayStart = text.indexOf('[');
@@ -334,7 +344,7 @@ public class LangChain4jLlmGateway implements LlmGateway {
 		char open;
 		char close;
 		if (objectStart < 0 && arrayStart < 0) {
-			throw new LlmException("No JSON found in model output");
+			throw new LlmException(LlmErrorCode.INVALID_OUTPUT, "No JSON found in model output");
 		}
 		if (objectStart >= 0 && (arrayStart < 0 || objectStart < arrayStart)) {
 			start = objectStart;
@@ -347,7 +357,7 @@ public class LangChain4jLlmGateway implements LlmGateway {
 		}
 		int end = text.lastIndexOf(close);
 		if (end <= start || text.charAt(start) != open) {
-			throw new LlmException("Malformed JSON in model output");
+			throw new LlmException(LlmErrorCode.INVALID_OUTPUT, "Malformed JSON in model output");
 		}
 		return text.substring(start, end + 1);
 	}

@@ -37,14 +37,19 @@ cd frontend && npm install && npm run dev
 
 ## Configuration
 
-All configuration is environment-driven (`backend/src/main/resources/application.yml` + `.env`). See [`.env.example`](.env.example) for the full list. Model/provider selection is config only — switching from Ollama to Anthropic/OpenAI/Gemini is an env change, no code change:
+All configuration is environment-driven (`backend/src/main/resources/application.yml` + `.env`). See [`.env.example`](.env.example) for the full list. In dev, the backend **imports `.env` directly** (repo root or `backend/.env`), so `cp .env.example .env`, pick a provider, and `./mvnw spring-boot:run` works without Docker. Model/provider selection is config only:
 
 ```bash
-IDEATION_PROVIDER=anthropic IDEATION_MODEL=claude-sonnet-4-5 ANTHROPIC_API_KEY=sk-ant-...
-SCORING_PROVIDER=openai     SCORING_MODEL=gpt-5-mini      OPENAI_API_KEY=sk-...
+# OpenAI
+IDEATION_PROVIDER=openai IDEATION_MODEL=<model> OPENAI_API_KEY=sk-...
+
+# DeepSeek (first-class, OpenAI-compatible under the hood; base URL defaults)
+IDEATION_PROVIDER=deepseek IDEATION_MODEL=deepseek-chat DEEPSEEK_API_KEY=sk-...
+
+# Any other provider (anthropic | gemini | ollama | openai-compatible) works the same way
 ```
 
-Each purpose (`ideation`, `scoring`, `chat`, `finalize`) has its own profile, temperature, token cap, and timeout; a fallback profile can be configured per profile. Prompts live in `backend/src/main/resources/prompts/` and are versioned; the version is stored on runs and finalizations.
+At startup the backend logs the resolved provider/model per purpose and warns about missing keys. Each purpose (`ideation`, `scoring`, `chat`, `finalize`) has its own profile, temperature, token cap, and timeout; a fallback profile can be configured per profile. Prompts live in `backend/src/main/resources/prompts/` and are versioned; the version is stored on runs and finalizations.
 
 ## Credits
 

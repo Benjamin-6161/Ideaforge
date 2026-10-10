@@ -209,6 +209,21 @@ class GenerationApiIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void modelNotFoundIsReportedAsItsOwnErrorCode() throws Exception {
+		fakeLlm.failWith(new LlmException(
+				com.app.ideaforge.llm.LlmErrorCode.MODEL_NOT_FOUND, "model 'llama3.1' not found"));
+
+		Cookie cookie = login(uniqueEmail());
+		UUID userId = userId(uniqueLastEmail);
+		String runId = createGeneration(cookie, "key-model-missing");
+
+		Map<String, Object> run = awaitRun(cookie, runId);
+		assertThat(run.get("status")).isEqualTo("FAILED");
+		assertThat(run.get("errorCode")).isEqualTo("MODEL_NOT_FOUND");
+		assertThat(creditService.balanceUnits(userId)).isEqualTo(50);
+	}
+
+	@Test
 	void weakIdeasAreReplacedOnceWithResearchAndScoring() throws Exception {
 		IdeationResponse firstRound = TestIdeas.ideation("Weak idea one", "Good two", "Good three", "Good four", "Good five");
 		IdeationResponse replacement = TestIdeas.ideation("Replacement idea");

@@ -7,6 +7,6 @@ package com.app.ideaforge.llm;
 public class CanaryLeakException extends LlmException {
 
 	public CanaryLeakException(String message) {
-		super(message);
+		super(LlmErrorCode.CANARY_LEAK, message);
 	}
 }

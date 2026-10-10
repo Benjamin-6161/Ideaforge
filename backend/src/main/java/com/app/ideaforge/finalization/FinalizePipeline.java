@@ -24,7 +24,7 @@ import com.app.ideaforge.ideas.IdeaVersion;
 import com.app.ideaforge.ideas.IdeaVersionRepository;
 import com.app.ideaforge.ideas.ValidationDepth;
 import com.app.ideaforge.ideas.dto.IdeaContent;
-import com.app.ideaforge.llm.CanaryLeakException;
+import com.app.ideaforge.llm.LlmErrorClassifier;
 import com.app.ideaforge.llm.LlmException;
 import com.app.ideaforge.llm.LlmGateway;
 import com.app.ideaforge.llm.LlmPurpose;
@@ -86,7 +86,7 @@ public class FinalizePipeline {
 			execute(finalizationId);
 		} catch (Exception ex) {
 			String code = errorCode(ex);
-			log.warn("Finalization {} failed with {}: {}", finalizationId, code, ex.getMessage());
+			log.warn("Finalization {} failed with {}: {}", finalizationId, code, LlmErrorClassifier.summary(ex));
 			failAndRefund(finalizationId, code);
 		}
 	}
@@ -188,12 +188,6 @@ public class FinalizePipeline {
 	}
 
 	private String errorCode(Exception ex) {
-		if (ex instanceof CanaryLeakException) {
-			return "CANARY_LEAK";
-		}
-		if (ex instanceof LlmException) {
-			return "LLM_FAILED";
-		}
-		return "INTERNAL_ERROR";
+		return ex instanceof LlmException llm ? llm.getCode().runCode() : "INTERNAL_ERROR";
 	}
 }

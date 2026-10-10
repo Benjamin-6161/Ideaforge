@@ -149,6 +149,20 @@ class LangChain4jLlmGatewayTest {
 	}
 
 	@Test
+	void classifiesConnectionFailuresFromTheCauseChain() {
+		model.respond(request -> {
+			throw new RuntimeException(new java.net.ConnectException("Connection refused"));
+		});
+		LlmGateway gateway = gateway();
+
+		assertThatThrownBy(() -> gateway.generateText(LlmPurpose.CHAT, new LlmPrompt("s", "u")))
+				.isInstanceOfSatisfying(LlmException.class, ex -> {
+					assertThat(ex.getCode()).isEqualTo(LlmErrorCode.CONNECTION_FAILED);
+					assertThat(ex.getMessage()).contains("ConnectException").contains("Connection refused");
+				});
+	}
+
+	@Test
 	void generateTextReturnsModelText() {
 		model.reply("Hello from the model");
 		LlmGateway gateway = gateway();

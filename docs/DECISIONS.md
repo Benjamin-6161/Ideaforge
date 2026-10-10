@@ -130,6 +130,18 @@ The frontend image is a Caddy image with the built SPA in `/srv`; the same conta
 
 The prod compose file marks `POSTGRES_PASSWORD`, the three peppers, `MAIL_HOST`, `MAIL_FROM`, the model names, and `SEARXNG_SECRET` as required (`:?`), complementing the application's own startup validation. Misconfiguration fails fast at `up` instead of leaking default credentials into a running stack.
 
+## D33 — The dev profile imports `.env` and pins safety settings
+
+Dev runs on the host, where Compose's `.env` means nothing to Spring. The dev profile therefore imports `optional:file:.env[.properties]` and `optional:file:../.env[.properties]`, so provider choices and keys work with `./mvnw spring-boot:run` too. Because `.env.example` ships values meant for both dev and prod, the dev profile **pins** two settings that must not leak in from the file: Turnstile stays disabled (an enabled Turnstile with an empty dev secret would silently block every login), and the OpenAPI docs stay enabled (needed by `npm run gen:api`).
+
+## D34 — DeepSeek is a first-class provider
+
+DeepSeek's API is OpenAI-compatible, so `provider: deepseek` reuses `OpenAiChatModel` with a default base URL of `https://api.deepseek.com/v1`; only `DEEPSEEK_API_KEY` (and optionally `DEEPSEEK_BASE_URL`) is required. No dedicated LangChain4j module exists for it, and `openai-compatible` remains available for anything else.
+
+## D35 — LLM failures carry a stable taxonomy
+
+Provider errors are classified into `LlmErrorCode` (NOT_CONFIGURED, UNAUTHORIZED, MODEL_NOT_FOUND, RATE_LIMITED, TIMEOUT, CONNECTION_FAILED, INVALID_REQUEST, INVALID_OUTPUT, CANARY_LEAK, UNKNOWN), persisted as run `error_code` values, logged with a root-cause summary (class + message, never keys or bodies), and shown in the UI with actionable text (e.g. "check `*_MODEL` in your .env"). The startup logger prints each resolved profile and warns about missing keys, so misconfiguration is visible before the first request.
+
 
 
 

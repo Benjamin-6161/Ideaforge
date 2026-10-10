@@ -69,7 +69,8 @@ public class ChatService {
 					userId, ideaId, prepared.userMessage().getId(), outcome.replyText(), outcome.revision());
 		} catch (RuntimeException ex) {
 			String errorCode = ChatAgent.errorCodeFor(ex);
-			log.warn("Chat turn failed for idea {} with {}: {}", ideaId, errorCode, ex.getMessage());
+			log.warn("Chat turn failed for idea {} with {}: {}", ideaId, errorCode,
+					com.app.ideaforge.llm.LlmErrorClassifier.summary(ex));
 			transactions.fail(userId, ideaId, prepared.userMessage().getId(), errorCode);
 			throw new ApiException(
 					HttpStatus.BAD_GATEWAY,

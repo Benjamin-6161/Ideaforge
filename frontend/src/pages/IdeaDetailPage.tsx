@@ -48,6 +48,7 @@ import {
 import { Separator } from '@/components/ui/separator'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { failureMessageFor } from '@/lib/llm-errors'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -209,8 +210,8 @@ export default function IdeaDetailPage() {
       {idea.revalidation?.status === 'FAILED' && (
         <Alert variant="destructive">
           <AlertDescription>
-            The last deep validation failed ({idea.revalidation.errorCode ?? 'ERROR'}). Credits were
-            refunded.
+            The last deep validation failed: {failureMessageFor(idea.revalidation.errorCode)} Credits
+            were refunded.
           </AlertDescription>
         </Alert>
       )}
@@ -227,7 +228,7 @@ export default function IdeaDetailPage() {
       {finalization?.status === 'FAILED' && (
         <Alert variant="destructive">
           <AlertDescription>
-            The finalization failed ({finalization.errorCode ?? 'ERROR'}). Credits were refunded.
+            The finalization failed: {failureMessageFor(finalization.errorCode)} Credits were refunded.
           </AlertDescription>
         </Alert>
       )}
