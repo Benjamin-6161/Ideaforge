@@ -154,6 +154,10 @@ Spec requires schema and length validation with at most one repair retry. That r
 
 To let a teammate test while the backend stays local, the SPA is deployed to a static host and `/api/*` is rewritten server-side to the tunnel. Calling the tunnel directly from the browser would make the session/CSRF cookies third-party, which Safari blocks and Chrome increasingly blocks — CORS tweaks would not fix that. The proxy keeps requests same-origin, so no CORS or cookie changes are needed. `render.yaml` and `frontend/public/_redirects.example` provide ready-made rules; the tunnel must target the backend (`:8080`), not the Vite dev server.
 
+## D39 — Custom authentication must mark its SecurityContext as established
+
+`SessionAuthFilter` authenticates from our own session cookie, but setting only the `SecurityContextHolder` makes `SessionManagementFilter` believe a login just happened on every authenticated request, so the composite session strategy — which includes `CsrfAuthenticationStrategy` — ran and expired the CSRF cookie each time. The fix has two parts: `SessionAuthFilter` saves the context into a shared `RequestAttributeSecurityContextRepository`, and the filter chain uses that same repository, so `SessionManagementFilter` skips the strategies. The SPA client also refreshes the token and retries once on any 403 for unsafe requests, as defense in depth against expired/rotated tokens. The no-op `NullAuthenticatedSessionStrategy` does not work here because `sessionAuthenticationStrategy(...)` participates in the composite rather than replacing it.
+
 
 
 

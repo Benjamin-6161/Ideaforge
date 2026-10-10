@@ -37,36 +37,54 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null
 }
 
+/** Fetches a fresh CSRF cookie/token, even when a stale cookie is present. */
+async function refreshCsrfToken(): Promise<void> {
+  await fetch('/api/auth/csrf', { credentials: 'same-origin' })
+}
+
 /** Generates the CSRF cookie if this browser does not have one yet. */
 async function ensureCsrfCookie(): Promise<void> {
   if (readCookie('XSRF-TOKEN')) {
     return
   }
-  await fetch('/api/auth/csrf', { credentials: 'same-origin' })
+  await refreshCsrfToken()
 }
 
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const method = (init.method ?? 'GET').toUpperCase()
-  const headers = new Headers(init.headers)
-  if (init.body !== undefined && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json')
+  const unsafe = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS'
+  const baseHeaders = new Headers(init.headers)
+  if (init.body !== undefined && !baseHeaders.has('Content-Type')) {
+    baseHeaders.set('Content-Type', 'application/json')
   }
-  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
-    if (path !== '/api/auth/csrf') {
-      await ensureCsrfCookie()
-    }
-    const token = readCookie('XSRF-TOKEN')
-    if (token) {
-      headers.set('X-XSRF-TOKEN', token)
-    }
+  if (unsafe && path !== '/api/auth/csrf') {
+    await ensureCsrfCookie()
   }
 
-  const response = await fetch(path, {
-    ...init,
-    method,
-    headers,
-    credentials: 'same-origin',
-  })
+  const send = () => {
+    const headers = new Headers(baseHeaders)
+    if (unsafe) {
+      const token = readCookie('XSRF-TOKEN')
+      if (token) {
+        headers.set('X-XSRF-TOKEN', token)
+      }
+    }
+    return fetch(path, {
+      ...init,
+      method,
+      headers,
+      credentials: 'same-origin',
+    })
+  }
+
+  let response = await send()
+  if (unsafe && path !== '/api/auth/csrf' && response.status === 403) {
+    // The token can go stale (expired cookie, server-side rotation). Refresh it
+    // once and retry; rejected requests were never executed, and paid endpoints
+    // are additionally guarded by Idempotency-Key.
+    await refreshCsrfToken()
+    response = await send()
+  }
 
   if (response.status === 204) {
     return undefined as T

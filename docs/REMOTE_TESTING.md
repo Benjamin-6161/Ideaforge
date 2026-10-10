@@ -95,7 +95,8 @@ If you rebuild after changing the tunnel host, remember the `_redirects` file is
 
 ## Gotchas
 
-- **Use the seeded accounts.** Behind the tunnel every request arrives from one apparent IP, so the signup throttle (3 new accounts/IP/24h) applies to all teammates combined.
+- **403 FORBIDDEN on a POST (and the UI says "something went wrong")**: the CSRF cookie was stale or cleared. Refresh the page; if it persists, check `CORS_ALLOWED_ORIGINS` and redeploy the backend — see `D39` in `docs/DECISIONS.md` for the session/CSRF fix. Requests that reached the backend show up in the tunnel's request log (`http://127.0.0.1:4040` for ngrok), which is the fastest place to see the real status codes.
+- **Use the seeded accounts.** Behind the tunnel every request arrives from one apparent IP, so the signup throttle (3 new accounts/IP/24h) applies to all teammates combined. The OTP rate limits are shared the same way (5/hour per email, 20/hour per apparent IP).
 - **Limits still apply**: 10 generations/day and 200 chat messages/day per user, plus the global daily LLM budget circuit breaker (`LLM_DAILY_BUDGET_USD`). Fine for demos; tell them if a run returns 503.
 - **ngrok warning page**: only shown for browser HTML requests. Because the tunnel is hit server-to-server with JSON, it does not appear. If you ever call the tunnel directly from a browser, add the `ngrok-skip-browser-warning: true` header.
 - **Tunnel restarts** change random hostnames; update the rewrite (or use a static domain) and the teammate keeps the same Render URL.

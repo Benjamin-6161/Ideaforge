@@ -223,6 +223,52 @@ class AuthFlowIntegrationTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void authenticatedRequestsKeepTheCsrfTokenValid() throws Exception {
+		// Bootstrap CSRF the way the SPA does, then use it explicitly (not the
+		// MockMvc csrf() post-processor) so the real handler is exercised.
+		MockHttpServletResponse csrfResponse = mockMvc.perform(get("/api/auth/csrf"))
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse();
+		Cookie xsrf = extractCookie(csrfResponse, "XSRF-TOKEN");
+
+		String email = uniqueEmail();
+		mockMvc.perform(post("/api/auth/otp/request")
+				.header("X-Forwarded-For", clientIp())
+				.cookie(xsrf)
+				.header("X-XSRF-TOKEN", xsrf.getValue())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\":\"%s\"}".formatted(email)))
+				.andExpect(status().isAccepted());
+
+		MvcResult verify = mockMvc.perform(post("/api/auth/otp/verify")
+				.header("X-Forwarded-For", clientIp())
+				.cookie(xsrf)
+				.header("X-XSRF-TOKEN", xsrf.getValue())
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"email\":\"%s\",\"code\":\"000000\"}".formatted(email)))
+				.andExpect(status().isOk())
+				.andReturn();
+		Cookie session = sessionCookie(verify.getResponse());
+
+		// An authenticated request must not clear the double-submit cookie.
+		MockHttpServletResponse me = mockMvc.perform(get("/api/me").cookie(session, xsrf))
+				.andExpect(status().isOk())
+				.andReturn()
+				.getResponse();
+		assertThat(setCookieHeaders(me))
+				.as("authenticated responses must not expire the CSRF cookie")
+				.noneMatch(header -> header.startsWith("XSRF-TOKEN=;"));
+
+		// The same token still authorizes an unsafe request (logout).
+		mockMvc.perform(post("/api/auth/logout")
+				.header("X-Forwarded-For", clientIp())
+				.cookie(session, xsrf)
+				.header("X-XSRF-TOKEN", xsrf.getValue()))
+				.andExpect(status().isNoContent());
+	}
+
+	@Test
 	void sessionCookieIsHttpOnlyAndLax() throws Exception {
 		String email = uniqueEmail();
 		requestOtp(email);
@@ -245,6 +291,23 @@ class AuthFlowIntegrationTest extends IntegrationTestBase {
 				.andExpect(status().isUnauthorized())
 				.andReturn();
 		return result.getResponse().getContentAsString();
+	}
+
+	private Cookie extractCookie(MockHttpServletResponse response, String name) {
+		return setCookieHeaders(response).stream()
+				.filter(header -> header.startsWith(name + "="))
+				.map(header -> {
+					String pair = header.split(";", 2)[0];
+					String[] parts = pair.split("=", 2);
+					return new Cookie(parts[0], parts[1]);
+				})
+				.findFirst()
+				.orElseThrow(() -> new AssertionError("No " + name + " cookie in response"));
+	}
+
+	private java.util.List<String> setCookieHeaders(MockHttpServletResponse response) {
+		var headers = response.getHeaders("Set-Cookie");
+		return headers == null ? java.util.List.of() : java.util.List.copyOf(headers);
 	}
 
 	private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder csrfJson(

@@ -11,6 +11,8 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -24,16 +26,27 @@ import com.app.ideaforge.common.config.AppProperties;
 public class SecurityConfig {
 
 	@Bean
+	public SecurityContextRepository securityContextRepository() {
+		// Shared by SessionAuthFilter (which marks the context as established) and the
+		// filter chain, so SessionManagementFilter does not treat our programmatic
+		// authentication as a login and wipe the CSRF token.
+		return new RequestAttributeSecurityContextRepository();
+	}
+
+	@Bean
 	public SecurityFilterChain securityFilterChain(
 			HttpSecurity http,
 			SessionAuthFilter sessionAuthFilter,
 			RestSecurityHandlers securityHandlers,
+			SecurityContextRepository securityContextRepository,
 			AppProperties properties) throws Exception {
 		http
 				.csrf(csrf -> csrf
 						.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
 						.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
-				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				.securityContext(context -> context.securityContextRepository(securityContextRepository))
+				.sessionManagement(session -> session
+						.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.POST, "/api/auth/otp/request", "/api/auth/otp/verify",
 								"/api/auth/google")

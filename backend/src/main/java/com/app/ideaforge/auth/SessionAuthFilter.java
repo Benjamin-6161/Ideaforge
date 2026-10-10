@@ -4,8 +4,10 @@ import java.io.IOException;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -20,10 +22,15 @@ public class SessionAuthFilter extends OncePerRequestFilter {
 
 	private final SessionService sessionService;
 	private final SessionCookieService cookieService;
+	private final SecurityContextRepository securityContextRepository;
 
-	public SessionAuthFilter(SessionService sessionService, SessionCookieService cookieService) {
+	public SessionAuthFilter(
+			SessionService sessionService,
+			SessionCookieService cookieService,
+			SecurityContextRepository securityContextRepository) {
 		this.sessionService = sessionService;
 		this.cookieService = cookieService;
+		this.securityContextRepository = securityContextRepository;
 	}
 
 	@Override
@@ -41,7 +48,14 @@ public class SessionAuthFilter extends OncePerRequestFilter {
 									null,
 									java.util.List.of(new SimpleGrantedAuthority("ROLE_" + resolution.user().role())));
 					authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-					SecurityContextHolder.getContext().setAuthentication(authentication);
+					SecurityContext context = SecurityContextHolder.createEmptyContext();
+					context.setAuthentication(authentication);
+					SecurityContextHolder.setContext(context);
+					// Mark the context as established for this request. Without this,
+					// SessionManagementFilter sees a "new" authentication and runs the
+					// session strategies, which include CsrfAuthenticationStrategy and
+					// would clear the CSRF cookie on every authenticated request.
+					securityContextRepository.saveContext(context, request, response);
 					if (resolution.extended()) {
 						cookieService.refreshCookie(response, token);
 					}
