@@ -150,6 +150,11 @@ Spec requires schema and length validation with at most one repair retry. That r
 
 `PromptLibrary` loads the highest `-vN.md` per name; adding `ideation-system-v2`, `scoring-system-v2`, `revision-system-v2`, and `finalize-system-v2` (hard length limits) automatically switches behavior while v1 stays on disk for reference. Runs and finalizations record the exact version label used.
 
+## D38 — Remote testing uses a server-side API proxy, never cross-origin cookies
+
+To let a teammate test while the backend stays local, the SPA is deployed to a static host and `/api/*` is rewritten server-side to the tunnel. Calling the tunnel directly from the browser would make the session/CSRF cookies third-party, which Safari blocks and Chrome increasingly blocks — CORS tweaks would not fix that. The proxy keeps requests same-origin, so no CORS or cookie changes are needed. `render.yaml` and `frontend/public/_redirects.example` provide ready-made rules; the tunnel must target the backend (`:8080`), not the Vite dev server.
+
+
 
 
 

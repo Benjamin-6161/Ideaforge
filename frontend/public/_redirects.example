@@ -1,0 +1,8 @@
+# Server-side proxy for hosts that use _redirects (Cloudflare Pages, Netlify).
+# To use: copy this file to frontend/public/_redirects, replace the tunnel host,
+# rebuild, and deploy. See docs/REMOTE_TESTING.md.
+#
+# The 200 status makes the host *proxy* the request instead of redirecting, so
+# the browser stays on the static host's origin and cookies remain first-party.
+/api/*  https://REPLACE-WITH-YOUR-TUNNEL.ngrok-free.app/api/:splat  200
+/*      /index.html                                                  200

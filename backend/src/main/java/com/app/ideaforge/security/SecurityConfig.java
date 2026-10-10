@@ -35,7 +35,9 @@ public class SecurityConfig {
 						.csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler()))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(auth -> auth
-						.requestMatchers(HttpMethod.POST, "/api/auth/otp/request", "/api/auth/otp/verify", "/api/auth/google").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/auth/otp/request", "/api/auth/otp/verify",
+								"/api/auth/google")
+						.permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
 						.requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
 						.requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()

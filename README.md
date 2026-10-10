@@ -64,3 +64,5 @@ See [`docs/DEPLOY.md`](docs/DEPLOY.md) for the single-VPS Docker Compose setup (
 - [`docs/PROGRESS.md`](docs/PROGRESS.md) — phase-by-phase status
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — assumptions and trade-offs
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — architecture and operational notes
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — single-VPS production deployment
+- [`docs/REMOTE_TESTING.md`](docs/REMOTE_TESTING.md) — share the app with a teammate while the backend stays local (`render.yaml` included)
