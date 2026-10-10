@@ -72,7 +72,11 @@ public class FakeLlmGateway implements LlmGateway {
 	}
 
 	@Override
-	public <T> T generateJson(LlmPurpose purpose, LlmPrompt prompt, Class<T> responseType) {
+	public <T> T generateJson(
+			LlmPurpose purpose,
+			LlmPrompt prompt,
+			Class<T> responseType,
+			jakarta.validation.Validator validator) {
 		calls.add(new Call(purpose, prompt));
 		if (failWith != null) {
 			throw failWith;

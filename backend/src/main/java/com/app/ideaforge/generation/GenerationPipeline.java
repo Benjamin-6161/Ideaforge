@@ -38,7 +38,6 @@ import com.app.ideaforge.llm.LlmException;
 import com.app.ideaforge.llm.LlmGateway;
 import com.app.ideaforge.llm.LlmPurpose;
 
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import tools.jackson.databind.ObjectMapper;
 
@@ -128,7 +127,8 @@ public class GenerationPipeline {
 		IdeationResponse ideation = llmGateway.generateJson(
 				LlmPurpose.IDEATION,
 				prompts.ideation(field, niche, parameters, avoidTitles, IDEA_COUNT),
-				IdeationResponse.class);
+				IdeationResponse.class,
+				validator);
 		List<IdeaContent> contents = new ArrayList<>(validatedIdeas(ideation, IDEA_COUNT));
 
 		// 2. Light research per idea
@@ -163,7 +163,8 @@ public class GenerationPipeline {
 		IdeationResponse replacementResponse = llmGateway.generateJson(
 				LlmPurpose.IDEATION,
 				prompts.ideation(field, niche, parameters, List.copyOf(excluded), weakIndexes.size()),
-				IdeationResponse.class);
+				IdeationResponse.class,
+				validator);
 		List<IdeaContent> replacements = validatedIdeas(replacementResponse, weakIndexes.size());
 
 		List<IdeaContent> replacedContents = new ArrayList<>();
@@ -190,10 +191,10 @@ public class GenerationPipeline {
 		ScoringResponse response = llmGateway.generateJson(
 				LlmPurpose.SCORING,
 				prompts.scoring(contents, bundles),
-				ScoringResponse.class);
+				ScoringResponse.class,
+				validator);
 		Map<Integer, ScoringResponse.ScoredIdea> byIndex = new java.util.HashMap<>();
 		for (ScoringResponse.ScoredIdea scored : response.ideas()) {
-			validate(scored, "scoring");
 			byIndex.put(scored.index(), scored);
 		}
 		List<ScoredIdea> mapped = new ArrayList<>();
@@ -221,12 +222,7 @@ public class GenerationPipeline {
 		if (response.ideas() == null || response.ideas().size() < requiredCount) {
 			throw new LlmException("Ideation output did not contain " + requiredCount + " ideas");
 		}
-		List<IdeaContent> contents = new ArrayList<>();
-		for (IdeaContent idea : response.ideas().stream().limit(requiredCount).toList()) {
-			validate(idea, "ideation");
-			contents.add(idea);
-		}
-		return contents;
+		return new ArrayList<>(response.ideas().stream().limit(requiredCount).toList());
 	}
 
 	private List<Integer> weakIndexes(List<ScoredIdea> scores) {
@@ -295,14 +291,6 @@ public class GenerationPipeline {
 						.ifPresent(refund -> run.markRefunded(refund.getId()));
 			}
 		}));
-	}
-
-	private <T> void validate(T value, String what) {
-		Set<ConstraintViolation<T>> violations = validator.validate(value);
-		if (!violations.isEmpty()) {
-			ConstraintViolation<T> first = violations.iterator().next();
-			throw new LlmException(what + " output failed validation: " + first.getPropertyPath() + " " + first.getMessage());
-		}
 	}
 
 	private String errorCode(Exception ex) {

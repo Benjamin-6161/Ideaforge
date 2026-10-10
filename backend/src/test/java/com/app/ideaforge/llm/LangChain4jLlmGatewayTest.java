@@ -41,6 +41,12 @@ class LangChain4jLlmGatewayTest {
 	record Payload(int value) {
 	}
 
+	record TextPayload(@jakarta.validation.constraints.Size(max = 10) String value) {
+	}
+
+	record RequiredPayload(@jakarta.validation.constraints.NotBlank String value) {
+	}
+
 	private StubChatModel model;
 	private AiUsageLogger usageLogger;
 	private SecurityEventService securityEvents;
@@ -125,7 +131,8 @@ class LangChain4jLlmGatewayTest {
 			}
 		};
 		LlmGateway gateway = new LangChain4jLlmGateway(
-				registry, properties, usageLogger, budgetGuard, securityEvents, new ObjectMapper());
+				registry, properties, usageLogger, budgetGuard, securityEvents,
+				new LlmOutputNormalizer(new ObjectMapper()), new ObjectMapper());
 
 		Payload payload = gateway.generateJson(LlmPurpose.IDEATION, new LlmPrompt("s", "u"), Payload.class);
 
@@ -163,6 +170,51 @@ class LangChain4jLlmGatewayTest {
 	}
 
 	@Test
+	void repairsValidationFailuresOnce() {
+		model.reply("{\"value\":\"this text is much too long to pass\"}");
+		model.reply("{\"value\":\"short\"}");
+		LlmGateway gateway = gateway();
+
+		TextPayload payload = gateway.generateJson(
+				LlmPurpose.CHAT, new LlmPrompt("s", "u"), TextPayload.class, validator());
+
+		assertThat(payload.value()).isEqualTo("short");
+		assertThat(model.calls.get()).isEqualTo(2);
+	}
+
+	@Test
+	void normalizesRangeViolationsWhenRepairStillFails() {
+		model.reply("{\"value\":\"this text is much too long to pass\"}");
+		model.reply("{\"value\":\"still much too long even now\"}");
+		LlmGateway gateway = gateway();
+
+		TextPayload payload = gateway.generateJson(
+				LlmPurpose.CHAT, new LlmPrompt("s", "u"), TextPayload.class, validator());
+
+		assertThat(payload.value()).hasSizeLessThanOrEqualTo(10);
+		assertThat(model.calls.get()).isEqualTo(2);
+	}
+
+	@Test
+	void structuralViolationsStillFailAsInvalidOutput() {
+		model.reply("{\"value\":\"\"}");
+		model.reply("{\"value\":\"\"}");
+		LlmGateway gateway = gateway();
+
+		assertThatThrownBy(() -> gateway.generateJson(
+				LlmPurpose.CHAT, new LlmPrompt("s", "u"), RequiredPayload.class, validator()))
+				.isInstanceOfSatisfying(LlmException.class, ex -> {
+					assertThat(ex.getCode()).isEqualTo(LlmErrorCode.INVALID_OUTPUT);
+					assertThat(ex.getMessage()).contains("failed validation");
+				});
+		assertThat(model.calls.get()).isEqualTo(2);
+	}
+
+	private jakarta.validation.Validator validator() {
+		return jakarta.validation.Validation.buildDefaultValidatorFactory().getValidator();
+	}
+
+	@Test
 	void generateTextReturnsModelText() {
 		model.reply("Hello from the model");
 		LlmGateway gateway = gateway();
@@ -179,7 +231,8 @@ class LangChain4jLlmGatewayTest {
 			}
 		};
 		return new LangChain4jLlmGateway(
-				registry, properties, usageLogger, budgetGuard, securityEvents, new ObjectMapper());
+				registry, properties, usageLogger, budgetGuard, securityEvents,
+				new LlmOutputNormalizer(new ObjectMapper()), new ObjectMapper());
 	}
 
 	private AppProperties properties(boolean withFallback) {

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,8 @@ import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.json.JsonObjectSchema;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.output.TokenUsage;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -47,6 +50,7 @@ public class LangChain4jLlmGateway implements LlmGateway {
 	private final AiUsageLogger usageLogger;
 	private final LlmBudgetGuard budgetGuard;
 	private final SecurityEventService securityEvents;
+	private final LlmOutputNormalizer outputNormalizer;
 	private final ObjectMapper objectMapper;
 	private final SecureRandom random = new SecureRandom();
 
@@ -56,43 +60,134 @@ public class LangChain4jLlmGateway implements LlmGateway {
 			AiUsageLogger usageLogger,
 			LlmBudgetGuard budgetGuard,
 			SecurityEventService securityEvents,
+			LlmOutputNormalizer outputNormalizer,
 			ObjectMapper objectMapper) {
 		this.models = models;
 		this.properties = properties;
 		this.usageLogger = usageLogger;
 		this.budgetGuard = budgetGuard;
 		this.securityEvents = securityEvents;
+		this.outputNormalizer = outputNormalizer;
 		this.objectMapper = objectMapper;
 	}
 
 	@Override
 	public <T> T generateJson(LlmPurpose purpose, LlmPrompt prompt, Class<T> responseType) {
+		return generateJson(purpose, prompt, responseType, null);
+	}
+
+	@Override
+	public <T> T generateJson(
+			LlmPurpose purpose,
+			LlmPrompt prompt,
+			Class<T> responseType,
+			Validator validator) {
 		budgetGuard.assertWithinBudget();
 		String profileName = profileNameFor(purpose);
 		String canary = newCanary();
 		LlmPrompt secured = withCanary(prompt, canary);
 
+		// Attempt 1: parse, then validate when a validator is provided.
 		String firstAttempt = callText(purpose, profileName, secured);
 		checkCanary(firstAttempt, canary, purpose);
-		try {
-			return objectMapper.readValue(extractJson(firstAttempt), responseType);
-		} catch (Exception firstFailure) {
-			log.debug("JSON parse failed for {} ({}), attempting one repair", purpose, firstFailure.getMessage());
+		ParseResult<T> first = tryParse(firstAttempt, responseType);
+		if (first.value() != null) {
+			ValidationResult<T> validation = validate(first.value(), validator);
+			if (validation.valid()) {
+				return first.value();
+			}
+			log.debug("Validation failed for {} ({}), attempting one repair", purpose,
+					String.join("; ", validation.descriptions()));
+			// Attempt 2: ask the model to fix the reported problems.
+			String repaired = callText(purpose, profileName, new LlmPrompt(
+					secured.system(),
+					validationRepairRequest(secured.user(), validation.descriptions())));
+			checkCanary(repaired, canary, purpose);
+			ParseResult<T> repairedResult = tryParse(repaired, responseType);
+			if (repairedResult.value() == null) {
+				throw new LlmException(
+						LlmErrorCode.INVALID_OUTPUT,
+						"Model output could not be parsed as the required JSON",
+						repairedResult.failure());
+			}
+			ValidationResult<T> repairedValidation = validate(repairedResult.value(), validator);
+			if (repairedValidation.valid()) {
+				return repairedResult.value();
+			}
+			// Last resort: truncate only range violations (strings/arrays over max).
+			T normalized = outputNormalizer.normalize(repairedResult.value(), repairedValidation.violations());
+			ValidationResult<T> normalizedValidation = validate(normalized, validator);
+			if (normalizedValidation.valid()) {
+				log.info("Normalized {} output to satisfy length limits after repair", purpose);
+				return normalized;
+			}
+			throw new LlmException(
+					LlmErrorCode.INVALID_OUTPUT,
+					"Model output failed validation: " + String.join("; ", normalizedValidation.descriptions()));
 		}
 
+		// Parse failure path: exactly one JSON repair retry.
 		LlmPrompt repairPrompt = new LlmPrompt(
 				secured.system(),
 				secured.user() + "\n\nYour previous reply was not valid JSON. Reply again with only the required JSON object and nothing else.");
 		String repaired = callText(purpose, profileName, repairPrompt);
 		checkCanary(repaired, canary, purpose);
-		try {
-			return objectMapper.readValue(extractJson(repaired), responseType);
-		} catch (Exception secondFailure) {
+		ParseResult<T> repairedResult = tryParse(repaired, responseType);
+		if (repairedResult.value() == null) {
 			throw new LlmException(
 					LlmErrorCode.INVALID_OUTPUT,
 					"Model output could not be parsed as the required JSON",
-					secondFailure);
+					repairedResult.failure());
 		}
+		ValidationResult<T> validation = validate(repairedResult.value(), validator);
+		if (validation.valid()) {
+			return repairedResult.value();
+		}
+		T normalized = outputNormalizer.normalize(repairedResult.value(), validation.violations());
+		ValidationResult<T> normalizedValidation = validate(normalized, validator);
+		if (normalizedValidation.valid()) {
+			return normalized;
+		}
+		throw new LlmException(
+				LlmErrorCode.INVALID_OUTPUT,
+				"Model output failed validation: " + String.join("; ", normalizedValidation.descriptions()));
+	}
+
+	private <T> ParseResult<T> tryParse(String text, Class<T> responseType) {
+		try {
+			return new ParseResult<>(objectMapper.readValue(extractJson(text), responseType), null);
+		} catch (Exception failure) {
+			return new ParseResult<>(null, failure);
+		}
+	}
+
+	private <T> ValidationResult<T> validate(T value, Validator validator) {
+		if (validator == null) {
+			return new ValidationResult<>(true, Set.of(), List.of());
+		}
+		Set<ConstraintViolation<T>> violations = validator.validate(value);
+		if (violations.isEmpty()) {
+			return new ValidationResult<>(true, Set.of(), List.of());
+		}
+		List<String> descriptions = violations.stream()
+				.limit(8)
+				.map(violation -> violation.getPropertyPath() + " " + violation.getMessage())
+				.toList();
+		return new ValidationResult<>(false, violations, descriptions);
+	}
+
+	private String validationRepairRequest(String originalUserPrompt, List<String> violations) {
+		return originalUserPrompt
+				+ "\n\nYour previous reply was valid JSON but failed these checks:\n"
+				+ violations.stream().map(violation -> "- " + violation).collect(java.util.stream.Collectors.joining("\n"))
+				+ "\n\nReply again with only the corrected full JSON object. "
+				+ "Keep every string within its stated character limit; shorten text rather than exceeding a limit.";
+	}
+
+	private record ParseResult<T>(T value, Exception failure) {
+	}
+
+	private record ValidationResult<T>(boolean valid, Set<ConstraintViolation<T>> violations, List<String> descriptions) {
 	}
 
 	@Override

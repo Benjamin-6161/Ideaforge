@@ -1,7 +1,6 @@
 package com.app.ideaforge.ideas;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -22,7 +21,6 @@ import com.app.ideaforge.llm.LlmGateway;
 import com.app.ideaforge.llm.LlmPurpose;
 import com.app.ideaforge.research.DeepResearchService;
 
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 
 /**
@@ -94,12 +92,12 @@ public class DeepValidationPipeline {
 				prompts.scoring(
 						List.of(content),
 						List.of(new ResearchBundle(bundle.evidence(), bundle.queries()))),
-				ScoringResponse.class);
+				ScoringResponse.class,
+				validator);
 		if (response.ideas() == null || response.ideas().isEmpty()) {
 			throw new LlmException("Deep scoring returned no entries");
 		}
 		ScoringResponse.ScoredIdea scored = response.ideas().get(0);
-		validate(scored);
 
 		transactions.executeWithoutResult(status -> {
 			ValidationRun managed = runs.findById(runId).orElseThrow();
@@ -132,14 +130,6 @@ public class DeepValidationPipeline {
 		}
 		merged.addAll(bundle.fetchedCompetitors());
 		return merged.stream().limit(8).toList();
-	}
-
-	private void validate(ScoringResponse.ScoredIdea scored) {
-		Set<ConstraintViolation<ScoringResponse.ScoredIdea>> violations = validator.validate(scored);
-		if (!violations.isEmpty()) {
-			ConstraintViolation<ScoringResponse.ScoredIdea> first = violations.iterator().next();
-			throw new LlmException("Deep scoring failed validation: " + first.getPropertyPath() + " " + first.getMessage());
-		}
 	}
 
 	private void failAndRefund(UUID runId, String errorCode) {

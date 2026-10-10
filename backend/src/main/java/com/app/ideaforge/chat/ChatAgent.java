@@ -1,7 +1,6 @@
 package com.app.ideaforge.chat;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.data.domain.PageRequest;
@@ -19,7 +18,6 @@ import com.app.ideaforge.llm.LlmGateway;
 import com.app.ideaforge.llm.LlmPurpose;
 import com.app.ideaforge.llm.LlmToolChatResult;
 
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
@@ -96,8 +94,8 @@ public class ChatAgent {
 			revision = llmGateway.generateJson(
 					LlmPurpose.CHAT,
 					promptComposer.revisionPrompt(content, parsed.directive().instructions(), userMessage.getContent()),
-					IdeaRevisionResponse.class);
-			validateRevision(revision);
+					IdeaRevisionResponse.class,
+					validator);
 		}
 		String reply = parsed.visibleText().isBlank()
 				? "Done. I updated the idea based on your request."
@@ -112,14 +110,6 @@ public class ChatAgent {
 		return versions.findById(idea.getCurrentVersionId())
 				.map(IdeaVersion::getContent)
 				.orElseThrow(() -> new LlmException("Idea version missing"));
-	}
-
-	private void validateRevision(IdeaRevisionResponse revision) {
-		Set<ConstraintViolation<IdeaRevisionResponse>> violations = validator.validate(revision);
-		if (!violations.isEmpty()) {
-			ConstraintViolation<IdeaRevisionResponse> first = violations.iterator().next();
-			throw new LlmException("Revision failed validation: " + first.getPropertyPath() + " " + first.getMessage());
-		}
 	}
 
 	record UpdateDirective(String changeSummary, String instructions) {

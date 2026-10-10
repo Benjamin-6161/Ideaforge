@@ -142,6 +142,15 @@ DeepSeek's API is OpenAI-compatible, so `provider: deepseek` reuses `OpenAiChatM
 
 Provider errors are classified into `LlmErrorCode` (NOT_CONFIGURED, UNAUTHORIZED, MODEL_NOT_FOUND, RATE_LIMITED, TIMEOUT, CONNECTION_FAILED, INVALID_REQUEST, INVALID_OUTPUT, CANARY_LEAK, UNKNOWN), persisted as run `error_code` values, logged with a root-cause summary (class + message, never keys or bodies), and shown in the UI with actionable text (e.g. "check `*_MODEL` in your .env"). The startup logger prints each resolved profile and warns about missing keys, so misconfiguration is visible before the first request.
 
+## D36 — Validation failures repair once, then normalize; they never fail a run by themselves
+
+Spec requires schema and length validation with at most one repair retry. That retry now covers Bean Validation failures, not only JSON parsing: the gateway reports the violations back to the model once. If the repaired output still violates only range limits, `LlmOutputNormalizer` truncates the offending strings (char-boundary safe) and trims arrays to the declared `max` instead of failing. Structural problems (missing/blank required fields, wrong types) still fail with `LLM_INVALID_OUTPUT`, because silently fabricating content would be worse than an honest refund. Prompts were also tightened (v2) with explicit per-field character budgets so the repair path is the exception.
+
+## D37 — Prompts are versioned, v2 files supersede v1
+
+`PromptLibrary` loads the highest `-vN.md` per name; adding `ideation-system-v2`, `scoring-system-v2`, `revision-system-v2`, and `finalize-system-v2` (hard length limits) automatically switches behavior while v1 stays on disk for reference. Runs and finalizations record the exact version label used.
+
+
 
 
 

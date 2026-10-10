@@ -12,15 +12,15 @@ class PromptLibraryTest {
 	@Test
 	void loadsHighestVersionWithLabel() {
 		PromptLibrary.PromptTemplate template = library.load("ideation-system");
-		assertThat(template.version()).isEqualTo(1);
-		assertThat(template.versionLabel()).isEqualTo("ideation-system-v1");
-		assertThat(template.content()).contains("Idea quality rubric");
+		assertThat(template.version()).isEqualTo(2);
+		assertThat(template.versionLabel()).isEqualTo("ideation-system-v2");
+		assertThat(template.content()).contains("Idea quality rubric").contains("Hard length limits");
 	}
 
 	@Test
 	void scoringPromptDefinesScales() {
 		String content = library.load("scoring-system").content();
-		assertThat(content).contains("demandScore").contains("competitionScore");
+		assertThat(content).contains("demandScore").contains("competitionScore").contains("Hard length limits");
 	}
 
 	@Test

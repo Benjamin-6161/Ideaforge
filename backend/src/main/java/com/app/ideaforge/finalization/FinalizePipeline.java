@@ -1,7 +1,6 @@
 package com.app.ideaforge.finalization;
 
 import java.util.List;
-import java.util.Set;
 import java.util.UUID;
 
 import org.slf4j.Logger;
@@ -30,7 +29,6 @@ import com.app.ideaforge.llm.LlmGateway;
 import com.app.ideaforge.llm.LlmPurpose;
 import com.app.ideaforge.research.DeepResearchService;
 
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 
 /**
@@ -107,18 +105,18 @@ public class FinalizePipeline {
 				generationPrompts.scoring(
 						List.of(content),
 						List.of(new ResearchBundle(bundle.evidence(), bundle.queries()))),
-				ScoringResponse.class);
+				ScoringResponse.class,
+				validator);
 		if (scoring.ideas() == null || scoring.ideas().isEmpty()) {
 			throw new LlmException("Deep scoring returned no entries");
 		}
 		ScoringResponse.ScoredIdea scored = scoring.ideas().get(0);
-		validate(scored, "deep scoring");
 
 		FinalizePlan plan = llmGateway.generateJson(
 				LlmPurpose.FINALIZE,
 				finalizePrompts.plan(content, validationSummary(scored, bundle)),
-				FinalizePlan.class);
-		validate(plan, "finalize plan");
+				FinalizePlan.class,
+				validator);
 
 		String buildPrompt = document("build prompt",
 				llmGateway.generateText(LlmPurpose.FINALIZE, finalizePrompts.buildPrompt(content, plan)).text());
@@ -164,14 +162,6 @@ public class FinalizePipeline {
 			throw new LlmException("The " + name + " document exceeds the maximum allowed length");
 		}
 		return text;
-	}
-
-	private <T> void validate(T value, String what) {
-		Set<ConstraintViolation<T>> violations = validator.validate(value);
-		if (!violations.isEmpty()) {
-			ConstraintViolation<T> first = violations.iterator().next();
-			throw new LlmException(what + " failed validation: " + first.getPropertyPath() + " " + first.getMessage());
-		}
 	}
 
 	private void failAndRefund(UUID finalizationId, String errorCode) {

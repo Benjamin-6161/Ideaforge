@@ -161,6 +161,7 @@ class LlmGatewayToolLoopTest {
 		};
 		return new LangChain4jLlmGateway(
 				registry, properties, usageLogger, mock(LlmBudgetGuard.class), securityEvents,
+				new LlmOutputNormalizer(new tools.jackson.databind.ObjectMapper()),
 				new tools.jackson.databind.ObjectMapper());
 	}
 

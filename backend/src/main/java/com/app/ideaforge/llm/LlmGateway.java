@@ -2,6 +2,8 @@ package com.app.ideaforge.llm;
 
 import java.util.List;
 
+import jakarta.validation.Validator;
+
 /**
  * Model-agnostic gateway. This is the only interface the rest of the app sees;
  * LangChain4j types never leak outside the llm package.
@@ -9,10 +11,17 @@ import java.util.List;
 public interface LlmGateway {
 
 	/**
-	 * Requests JSON output, parses it into the given type, and allows at most
-	 * one repair retry when parsing fails.
+	 * Requests JSON output, parses it, and allows one repair retry when parsing
+	 * <em>or</em> validation fails. When a validator is provided and repair still
+	 * leaves only range violations (e.g. an over-long string), the output is
+	 * normalized to its declared limits instead of failing the request.
 	 */
-	<T> T generateJson(LlmPurpose purpose, LlmPrompt prompt, Class<T> responseType);
+	default <T> T generateJson(LlmPurpose purpose, LlmPrompt prompt, Class<T> responseType) {
+		return generateJson(purpose, prompt, responseType, null);
+	}
+
+	/** Variant that validates the parsed output against Bean Validation constraints. */
+	<T> T generateJson(LlmPurpose purpose, LlmPrompt prompt, Class<T> responseType, Validator validator);
 
 	/** Free-form text generation (chat replies, markdown documents). */
 	LlmTextResult generateText(LlmPurpose purpose, LlmPrompt prompt);
