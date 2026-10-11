@@ -2,6 +2,8 @@
 
 Target: one small VPS (2–4 GB RAM) running everything through Docker Compose. The only recurring costs should be the VPS and LLM API usage.
 
+> This document covers production. For the hosted test stack (frontend, API, and Postgres on Render), see [`REMOTE_TESTING.md`](REMOTE_TESTING.md).
+
 ## 1. Prerequisites
 
 - A VPS with Ubuntu 22.04+ (2 vCPU / 4 GB is comfortable; 2 GB works for light use).

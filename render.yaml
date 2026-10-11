@@ -1,21 +1,119 @@
-# Render Blueprint for remote testing with a local backend.
-# See docs/REMOTE_TESTING.md.
+# Render Blueprint: the full test environment on Render — static frontend,
+# Spring Boot API, and PostgreSQL. No local machine or tunnel needed.
+# See docs/REMOTE_TESTING.md for the walkthrough and caveats.
 #
-# ONE EDIT REQUIRED: replace the tunnel host below with your public tunnel URL
-# (e.g. your ngrok static domain or a named Cloudflare Tunnel host). The frontend
-# is served from Render's CDN; /api/* is proxied server-side to your machine so
-# session and CSRF cookies stay first-party in the browser.
+# Notes:
+# - The API runs the `dev` profile on purpose: fixed OTP 000000, Turnstile
+#   disabled, test users seeded. This is a test deployment; never use it for
+#   real user data.
+# - This file adopts the existing static site `ideaforge-clxe` by name and
+#   points its /api/* rewrite at the API service below.
+# - If Render assigns a different URL to the API service (name already taken),
+#   update the rewrite destination and sync again.
+
+databases:
+  - name: ideaforge-db
+    databaseName: ideaforge
+    user: ideaforge
+    plan: free
+    region: frankfurt
+    ipAllowList: [] # internal connections only; no public database access
+
 services:
   - type: web
-    name: ideaforge-frontend
+    name: ideaforge-api-6161
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /actuator/health/readiness
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - backend/**
+        - render.yaml
+    envVars:
+      # Profile & database
+      - key: SPRING_PROFILES_ACTIVE
+        value: dev
+      - key: DB_HOST
+        fromDatabase:
+          name: ideaforge-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: ideaforge-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: ideaforge-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: ideaforge-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: ideaforge-db
+          property: password
+      # Secrets (generated once and kept by Render)
+      - key: SESSION_PEPPER
+        generateValue: true
+      - key: OTP_PEPPER
+        generateValue: true
+      - key: IP_PEPPER
+        generateValue: true
+      # Test-mode login
+      - key: DEV_FIXED_OTP
+        value: "000000"
+      # Behind Render's proxy
+      - key: TRUST_PROXY
+        value: "true"
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://ideaforge-clxe.onrender.com
+      - key: APP_BASE_URL
+        value: https://ideaforge-clxe.onrender.com
+      # External services
+      - key: SEARXNG_ENABLED
+        value: "false" # no SearXNG instance here; Hacker News search still used
+      # LLM (switch by editing these; add the matching API key var as needed)
+      - key: IDEATION_PROVIDER
+        value: deepseek
+      - key: IDEATION_MODEL
+        value: deepseek-chat
+      - key: SCORING_PROVIDER
+        value: deepseek
+      - key: SCORING_MODEL
+        value: deepseek-chat
+      - key: CHAT_PROVIDER
+        value: deepseek
+      - key: CHAT_MODEL
+        value: deepseek-chat
+      - key: FINALIZE_PROVIDER
+        value: deepseek
+      - key: FINALIZE_MODEL
+        value: deepseek-chat
+      - key: DEEPSEEK_API_KEY
+        sync: false # prompted in the Render dashboard
+
+  - type: web
+    name: ideaforge-clxe
     runtime: static
+    autoDeployTrigger: commit
     buildCommand: cd frontend && npm ci && npm run build
     staticPublishPath: ./frontend/dist
+    buildFilter:
+      paths:
+        - frontend/**
+        - render.yaml
     routes:
-      # API -> local backend through the tunnel (must be listed first).
+      # API -> Render-hosted backend service (must be listed first).
       - type: rewrite
         source: /api/*
-        destination: https://REPLACE-WITH-YOUR-TUNNEL.ngrok-free.app/api/*
+        destination: https://ideaforge-api-6161.onrender.com/api/*
       # SPA client-side routing fallback.
       - type: rewrite
         source: /*
