@@ -113,10 +113,11 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       body?.errors ?? [],
     )
   }
-  if (body === undefined) {
-    // An OK response without a JSON body means something in the chain is not
-    // our API (e.g. a misconfigured proxy serving HTML or empty 200s). Failing
-    // loudly beats treating it as a successful no-op.
+  // 202 is how the API acknowledges work that has no response body (e.g. the
+  // OTP request). Any other OK response without a JSON body means something in
+  // the chain is not our API (e.g. a misconfigured proxy serving HTML or empty
+  // 200s); failing loudly beats treating it as a successful no-op.
+  if (body === undefined && !(text.length === 0 && response.status === 202)) {
     throw new ApiError(
       response.status,
       'INVALID_RESPONSE',

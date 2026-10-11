@@ -106,6 +106,27 @@ describe('apiFetch', () => {
     await expect(apiFetch('/api/me')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
   })
 
+  it('rejects an OK response that is not JSON', async () => {
+    fetchMock.mockResolvedValue(
+      new Response('<html><body>proxy error</body></html>', {
+        status: 200,
+        headers: { 'Content-Type': 'text/html' },
+      }),
+    )
+
+    await expect(apiFetch('/api/me')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
+  })
+
+  it('accepts an empty 202 as a no-content success', async () => {
+    document.cookie = 'XSRF-TOKEN=token-abc; path=/'
+    fetchMock.mockResolvedValue(new Response('', { status: 202 }))
+
+    await expect(
+      apiFetch('/api/auth/otp/request', { method: 'POST', body: '{}' }),
+    ).resolves.toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
   it('parses problem+json errors into ApiError', async () => {
     document.cookie = 'XSRF-TOKEN=token; path=/'
     fetchMock.mockResolvedValue(
