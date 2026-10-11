@@ -6,8 +6,12 @@
 # - The API runs the `dev` profile on purpose: fixed OTP 000000, Turnstile
 #   disabled, test users seeded. This is a test deployment; never use it for
 #   real user data.
-# - This file adopts the existing static site `ideaforge-clxe` by name and
-#   points its /api/* rewrite at the API service below.
+# - The static site below was created by Render with the `-fl5k` suffix (the
+#   plain `ideaforge-clxe` name was taken by the earlier manual site). CORS and
+#   APP_BASE_URL must match that URL.
+# - The /api/* rewrite MUST point at the API service (ideaforge-api-6161), not
+#   at the static site itself: a self-pointing destination answers with empty
+#   200s and logins appear to succeed without doing anything.
 # - If Render assigns a different URL to the API service (name already taken),
 #   update the rewrite destination and sync again.
 
@@ -113,7 +117,7 @@ services:
       # API -> Render-hosted backend service (must be listed first).
       - type: rewrite
         source: /api/*
-        destination: https://ideaforge-clxe-fl5k.onrender.com/api/*
+        destination: https://ideaforge-api-6161.onrender.com/api/*
       # SPA client-side routing fallback.
       - type: rewrite
         source: /*

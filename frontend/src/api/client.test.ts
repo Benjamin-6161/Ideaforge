@@ -100,6 +100,12 @@ describe('apiFetch', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
+  it('rejects an OK response with an empty body instead of faking success', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 200 }))
+
+    await expect(apiFetch('/api/me')).rejects.toMatchObject({ code: 'INVALID_RESPONSE' })
+  })
+
   it('parses problem+json errors into ApiError', async () => {
     document.cookie = 'XSRF-TOKEN=token; path=/'
     fetchMock.mockResolvedValue(

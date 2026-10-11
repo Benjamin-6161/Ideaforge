@@ -113,6 +113,16 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
       body?.errors ?? [],
     )
   }
+  if (body === undefined) {
+    // An OK response without a JSON body means something in the chain is not
+    // our API (e.g. a misconfigured proxy serving HTML or empty 200s). Failing
+    // loudly beats treating it as a successful no-op.
+    throw new ApiError(
+      response.status,
+      'INVALID_RESPONSE',
+      'The server returned an unexpected (empty or non-JSON) response.',
+    )
+  }
   return body as T
 }
 
