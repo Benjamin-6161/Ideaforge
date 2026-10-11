@@ -73,9 +73,9 @@ services:
       - key: SESSION_COOKIE_SECURE
         value: "true"
       - key: CORS_ALLOWED_ORIGINS
-        value: https://ideaforge-clxe.onrender.com
+        value: https://ideaforge-clxe-fl5k.onrender.com
       - key: APP_BASE_URL
-        value: https://ideaforge-clxe.onrender.com
+        value: https://ideaforge-clxe-fl5k.onrender.com
       # External services
       - key: SEARXNG_ENABLED
         value: "false" # no SearXNG instance here; Hacker News search still used
@@ -113,7 +113,7 @@ services:
       # API -> Render-hosted backend service (must be listed first).
       - type: rewrite
         source: /api/*
-        destination: https://ideaforge-api-6161.onrender.com/api/*
+        destination: https://ideaforge-clxe-fl5k.onrender.com/api/*
       # SPA client-side routing fallback.
       - type: rewrite
         source: /*
